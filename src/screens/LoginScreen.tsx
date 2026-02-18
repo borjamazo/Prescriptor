@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../contexts/AuthContext';
 import { BiometricService } from '../services/BiometricService';
+
+const BRAND_LOGO = require('../../assets/splash_screens/android/drawable-xxhdpi/splash.jpg');
 
 const PRIMARY = '#5551F5';
 
@@ -53,8 +56,8 @@ export const LoginScreen = () => {
         >
           {/* ── Header ── */}
           <View style={styles.header}>
-            <View style={styles.shieldContainer}>
-              <Ionicons name="shield" size={40} color="#ffffff" />
+            <View style={styles.logoContainer}>
+              <Image source={BRAND_LOGO} style={styles.logoImage} resizeMode="contain" />
             </View>
             <Text style={styles.welcomeTitle}>Bienvenido</Text>
             <Text style={styles.welcomeSubtitle}>Accede a tu plataforma médica</Text>
@@ -161,14 +164,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
   },
-  shieldContainer: {
-    width: 76,
-    height: 76,
+  logoContainer: {
+    width: 180,
+    height: 200,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
     marginBottom: 20,
+  },
+  logoImage: {
+    width: 180,
+    height: 200,
   },
   welcomeTitle: {
     fontSize: 28,

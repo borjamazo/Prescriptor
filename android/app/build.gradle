@@ -119,4 +119,9 @@ dependencies {
     }
 
     implementation("com.pdftron:pdftron:${apryseVersion}")
+    
+    // Exclude old support libraries to avoid conflicts with AndroidX
+    configurations.all {
+        exclude group: 'com.android.support', module: 'support-compat'
+    }
 }

@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "android": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && react-native run-android'",
+    "ios": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && react-native run-ios'",
     "lint": "eslint .",
-    "start": "react-native start",
+    "start": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && react-native start'",
     "test": "jest",
     "postinstall": "patch-package"
   },
@@ -46,6 +46,6 @@
     "typescript": "^5.8.3"
   },
   "engines": {
-    "node": ">=20.19.4"
+    "node": "20.19.3"
   }
 }

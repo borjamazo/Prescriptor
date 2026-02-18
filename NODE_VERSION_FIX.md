@@ -32,18 +32,35 @@ if (!os.availableParallelism) {
 
 ## Commands to Run
 
-### Use Node 20.19.3
-```bash
-nvm use 20.19.3
-```
+### Automatic (Recommended)
+The scripts now automatically use Node 20.19.3:
 
-### Start Metro Bundler
 ```bash
 npm start
 ```
 
-### Build and Run Android
 ```bash
+npm run android
+```
+
+### Manual (Alternative)
+If the automatic method doesn't work:
+
+```bash
+nvm use 20.19.3
+npm start
+```
+
+```bash
+nvm use 20.19.3
+npm run android
+```
+
+### Using .nvmrc
+The project now includes a `.nvmrc` file. Simply run:
+
+```bash
+nvm use
 npm run android
 ```
 

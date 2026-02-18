@@ -4,6 +4,31 @@ This is a new [**React Native**](https://reactnative.dev) project, bootstrapped 
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
+## Node.js Version Requirement
+
+This project requires **Node.js 20.19.3** for compatibility with React Native 0.83 and Metro bundler.
+
+### Using nvm (Recommended)
+
+If you have [nvm](https://github.com/nvm-sh/nvm) installed:
+
+```sh
+# Install Node 20.19.3 if you don't have it
+nvm install 20.19.3
+
+# Use Node 20.19.3 (automatic with .nvmrc)
+nvm use
+
+# Or explicitly
+nvm use 20.19.3
+```
+
+The project includes a `.nvmrc` file, so `nvm use` will automatically select the correct version.
+
+### Automatic Node Version Switching
+
+The npm scripts (`npm start`, `npm run android`, `npm run ios`) automatically switch to Node 20.19.3 using nvm. If you encounter issues, manually run `nvm use 20.19.3` before running commands.
+
 ## Step 1: Start Metro
 
 First, you will need to run **Metro**, the JavaScript build tool for React Native.
@@ -83,6 +108,44 @@ You've successfully run and modified your React Native App. :partying_face:
 - If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
 
 # Troubleshooting
+
+## Node.js Version Issues
+
+If you see errors like `_os.default.availableParallelism is not a function` or `configs.toReversed is not a function`:
+
+1. Ensure you're using Node 20.19.3:
+   ```sh
+   nvm use 20.19.3
+   node --version  # Should show v20.19.3
+   ```
+
+2. Clear Metro cache:
+   ```sh
+   watchman watch-del-all
+   npm start -- --reset-cache
+   ```
+
+3. Clean and rebuild:
+   ```sh
+   cd android && ./gradlew clean && cd ..
+   npm run android
+   ```
+
+## Metro Bundler Issues
+
+If Metro fails to start or you see bundling errors:
+
+```sh
+# Kill any process on port 8081
+lsof -ti:8081 | xargs kill -9
+
+# Clear all caches
+watchman watch-del-all
+rm -rf node_modules/.cache
+npm start -- --reset-cache
+```
+
+## General Troubleshooting
 
 If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
 

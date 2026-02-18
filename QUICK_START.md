@@ -1,20 +1,20 @@
 # Quick Start Guide
 
-## ⚠️ IMPORTANT: You must use Node 22.22.0
+## ⚠️ IMPORTANT: You must use Node 20.19.3
 
 Your current Node version: **16.13.0** ❌  
-Required Node version: **22.22.0** ✅
+Required Node version: **20.19.3** ✅
 
-## Step 1: Install Node 22.22.0
+## Step 1: Install Node 20.19.3
 
 ```bash
 # Using nvm (recommended)
-nvm install 22.22.0
-nvm use 22.22.0
-nvm alias default 22.22.0
+nvm install 20.19.3
+nvm use 20.19.3
+nvm alias default 20.19.3
 
 # Verify
-node --version  # Should output: v22.22.0
+node --version  # Should output: v20.19.3
 ```
 
 ## Step 2: Run Setup Script

@@ -1,13 +1,25 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Button, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
 
 export const SettingsScreen = () => {
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert('Salir', '¿Estás seguro?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Salir', onPress: logout },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.content}>
         <Text style={styles.title}>Configuración</Text>
         <Text style={styles.text}>Pantalla de configuración</Text>
+        <View style={styles.spacer} />
+        <Button title="Cerrar sesión" onPress={handleLogout} />
       </View>
     </SafeAreaView>
   );
@@ -31,5 +43,8 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 14,
     color: '#666666',
+  },
+  spacer: {
+    height: 24,
   },
 });

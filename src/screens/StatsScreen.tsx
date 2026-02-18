@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export const HomeScreen = () => (
+export const StatsScreen = () => (
   <SafeAreaView style={styles.container} edges={['bottom']}>
     <View style={styles.content}>
-      <Text style={styles.title}>Inicio</Text>
-      <Text style={styles.text}>Bienvenido a PdfSign</Text>
+      <Text style={styles.title}>Estadísticas</Text>
+      <Text style={styles.text}>Historial de documentos firmados</Text>
     </View>
   </SafeAreaView>
 );

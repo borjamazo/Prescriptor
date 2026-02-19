@@ -17,7 +17,7 @@ import { TextInputField } from '../components/TextInputField';
 import { useAuth } from '../contexts/AuthContext';
 import { BiometricService } from '../services/BiometricService';
 
-const BRAND_LOGO = require('../../assets/splash_screens/android/drawable-xxhdpi/splash.jpg');
+const BRAND_LOGO = require('../../assets/logo.png');
 
 export const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -148,12 +148,8 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   logoContainer: {
-    width: 180,
-    height: 200,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    overflow: 'hidden',
-    marginBottom: 20,
+    width: 90,
+    height: 100,
   },
   logo: {
     width: '100%',

@@ -22,6 +22,7 @@ const INACTIVE_COLOR = '#9E9E9E';
 const MainTabs = () => (
   <Tab.Navigator
     screenOptions={{
+      headerShown: false,
       tabBarActiveTintColor: ACTIVE_COLOR,
       tabBarInactiveTintColor: INACTIVE_COLOR,
       tabBarStyle: {

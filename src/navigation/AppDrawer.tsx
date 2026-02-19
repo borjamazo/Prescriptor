@@ -7,10 +7,14 @@ import { StatsScreen } from '../screens/StatsScreen';
 import { SignScreen } from '../screens/SignScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { PrescriptionCreateScreen } from '../screens/PrescriptionCreateScreen';
+import { HelpCenterScreen } from '../screens/HelpCenterScreen';
+import { TermsOfServiceScreen } from '../screens/TermsOfServiceScreen';
 
 export type AppStackParamList = {
   MainTabs: undefined;
   PrescriptionCreate: undefined;
+  HelpCenter: undefined;
+  TermsOfService: undefined;
 };
 
 const Tab = createBottomTabNavigator();
@@ -85,5 +89,7 @@ export const AppStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="MainTabs"           component={MainTabs} />
     <Stack.Screen name="PrescriptionCreate" component={PrescriptionCreateScreen} />
+    <Stack.Screen name="HelpCenter"         component={HelpCenterScreen} />
+    <Stack.Screen name="TermsOfService"     component={TermsOfServiceScreen} />
   </Stack.Navigator>
 );

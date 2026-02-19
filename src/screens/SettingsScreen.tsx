@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { SectionLabel } from '../components/SectionLabel';
 import { SettingsRow } from '../components/SettingsRow';
@@ -76,6 +77,8 @@ export const SettingsScreen = () => {
     setPrefs(updated);
     ProfileService.savePreferences(updated);
   };
+
+  const navigation = useNavigation();
 
   const handleLogout = () => {
     Alert.alert('Cerrar Sesión', '¿Estás seguro de que quieres salir?', [
@@ -184,6 +187,7 @@ export const SettingsScreen = () => {
             iconColor="#D97706"
             label="Help Center"
             subtitle="FAQs and tutorials"
+            onPress={() => (navigation as any).navigate('HelpCenter')}
           />
           <SettingsRow
             type="chevron"
@@ -193,6 +197,7 @@ export const SettingsScreen = () => {
             label="Terms of Service"
             subtitle="Legal information"
             showSeparator={false}
+            onPress={() => (navigation as any).navigate('TermsOfService')}
           />
         </View>
 

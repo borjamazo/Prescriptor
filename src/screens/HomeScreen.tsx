@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { PrescriptionCard } from '../components/PrescriptionCard';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { SearchBar } from '../components/SearchBar';
@@ -15,6 +16,7 @@ const formatDate = (d: Date) =>
   d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
 export const HomeScreen = () => {
+  const navigation = useNavigation();
   const [search, setSearch] = useState('');
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ pending: 0, signedToday: 0 });
@@ -57,7 +59,11 @@ export const HomeScreen = () => {
 
         {/* ── New Prescription ── */}
         <View style={styles.buttonContainer}>
-          <PrimaryButton title="New Prescription" icon="+" onPress={() => {}} />
+          <PrimaryButton
+            title="Nueva Prescripción"
+            icon="+"
+            onPress={() => (navigation as any).navigate('PrescriptionCreate')}
+          />
         </View>
 
         {/* ── Prescription list ── */}

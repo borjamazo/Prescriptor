@@ -1,17 +1,25 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { HomeScreen } from '../screens/HomeScreen';
 import { StatsScreen } from '../screens/StatsScreen';
 import { SignScreen } from '../screens/SignScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { PrescriptionCreateScreen } from '../screens/PrescriptionCreateScreen';
+
+export type AppStackParamList = {
+  MainTabs: undefined;
+  PrescriptionCreate: undefined;
+};
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator<AppStackParamList>();
 
-const ACTIVE_COLOR = '#5C6BC0';
+const ACTIVE_COLOR   = '#5C6BC0';
 const INACTIVE_COLOR = '#9E9E9E';
 
-export const AppStack = () => (
+const MainTabs = () => (
   <Tab.Navigator
     screenOptions={{
       tabBarActiveTintColor: ACTIVE_COLOR,
@@ -70,4 +78,11 @@ export const AppStack = () => (
       }}
     />
   </Tab.Navigator>
+);
+
+export const AppStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="MainTabs"           component={MainTabs} />
+    <Stack.Screen name="PrescriptionCreate" component={PrescriptionCreateScreen} />
+  </Stack.Navigator>
 );

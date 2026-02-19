@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const PrescriptionCard = ({ prescription }: Props) => {
-  const { patientName, rxNumber, status, medication, dosage, date } = prescription;
+  const { patientName, patientDocument, rxNumber, status, medication, dosage, date } = prescription;
   const dotColor = colors.status[status].dot;
 
   return (
@@ -18,6 +18,9 @@ export const PrescriptionCard = ({ prescription }: Props) => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.patientName}>{patientName}</Text>
+          {patientDocument ? (
+            <Text style={styles.patientDocument}>{patientDocument}</Text>
+          ) : null}
           <Text style={styles.rxNumber}>{rxNumber}</Text>
         </View>
         <StatusBadge status={status} />
@@ -63,9 +66,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  patientDocument: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginTop: 1,
+  },
   rxNumber: {
     color: '#9CA3AF',
     fontSize: 14,
+    marginTop: 1,
   },
   medicationRow: {
     flexDirection: 'row',

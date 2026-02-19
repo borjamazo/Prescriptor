@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -81,10 +80,7 @@ export const SettingsScreen = () => {
   const navigation = useNavigation();
 
   const handleLogout = () => {
-    Alert.alert('Cerrar Sesión', '¿Estás seguro de que quieres salir?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Salir', style: 'destructive', onPress: logout },
-    ]);
+    logout();
   };
 
   return (

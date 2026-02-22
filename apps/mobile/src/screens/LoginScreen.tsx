@@ -17,7 +17,6 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { TextInputField } from '../components/TextInputField';
 import { useAuth } from '../contexts/AuthContext';
-import { BiometricService } from '../services/BiometricService';
 import type { AuthStackParamList } from '../navigation/AuthStack';
 
 const BRAND_LOGO = require('../../assets/logo.png');
@@ -30,27 +29,35 @@ export const LoginScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { loginWithCredentials, loginWithBiometrics } = useAuth();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
     }
-    login();
+    setLoading(true);
+    try {
+      await loginWithCredentials(email.trim(), password);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al iniciar sesión';
+      Alert.alert('Acceso denegado', message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSocialLogin = (provider: string) => {
-    // TODO: conectar con Supabase OAuth
     Alert.alert('Próximamente', `Inicio de sesión con ${provider} disponible pronto.`);
   };
 
   const handleBiometricLogin = async () => {
-    const success = await BiometricService.authenticate();
-    if (success) {
-      login();
-    } else {
-      Alert.alert('Error', 'Autenticación biométrica fallida');
+    try {
+      await loginWithBiometrics();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Autenticación biométrica fallida';
+      Alert.alert('Error', message);
     }
   };
 
@@ -97,7 +104,7 @@ export const LoginScreen = ({ navigation }: Props) => {
 
             {/* Iniciar sesión */}
             <View style={styles.buttonContainer}>
-              <PrimaryButton title="Iniciar Sesión" onPress={handleLogin} />
+              <PrimaryButton title="Iniciar Sesión" onPress={handleLogin} loading={loading} />
             </View>
 
             {/* Registro link */}

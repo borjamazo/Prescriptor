@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getSession, signInWithEmail, signOut, signUpWithEmail } from '../services/SupabaseService';
+import {
+  getActiveSession,
+  loginWithEmail,
+  signOut,
+  signUpWithEmail,
+} from '../services/SupabaseService';
+import { BiometricService } from '../services/BiometricService';
 
 interface RegisterParams {
   email: string;
@@ -10,7 +16,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   biometricsEnabled: boolean;
-  login: () => void;
+  loginWithCredentials: (email: string, password: string) => Promise<void>;
+  loginWithBiometrics: () => Promise<void>;
   logout: () => Promise<void>;
   enableBiometrics: () => void;
   register: (params: RegisterParams) => Promise<void>;
@@ -23,11 +30,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Restaurar sesión al arrancar la app
   useEffect(() => {
     const init = async () => {
       try {
-        const session = await getSession();
-        setIsAuthenticated(session !== null);
+        const active = await getActiveSession();
+        setIsAuthenticated(active);
       } finally {
         setIsLoading(false);
       }
@@ -35,10 +43,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     init();
   }, []);
 
-  // Usado para login biométrico / stub (sin credenciales)
-  const login = () => setIsAuthenticated(true);
+  /**
+   * Login con email y contraseña. Lanza error si las credenciales son incorrectas
+   * o si la cuenta no tiene status 'active'.
+   */
+  const loginWithCredentials = async (
+    email: string,
+    password: string,
+  ): Promise<void> => {
+    await loginWithEmail(email, password);
+    setIsAuthenticated(true);
+  };
 
-  const logout = async () => {
+  /**
+   * Login biométrico: verifica huella/face ID y comprueba que
+   * haya una sesión activa con cuenta activa.
+   */
+  const loginWithBiometrics = async (): Promise<void> => {
+    const biometricOk = await BiometricService.authenticate();
+    if (!biometricOk) {
+      throw new Error('Autenticación biométrica fallida');
+    }
+
+    const active = await getActiveSession();
+    if (!active) {
+      throw new Error(
+        'No hay una sesión activa. Inicia sesión con tu email y contraseña.',
+      );
+    }
+
+    setIsAuthenticated(true);
+  };
+
+  const logout = async (): Promise<void> => {
     await signOut();
     setIsAuthenticated(false);
     setBiometricsEnabled(false);
@@ -46,19 +83,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const enableBiometrics = () => setBiometricsEnabled(true);
 
-  /**
-   * Registra un nuevo usuario con email y contraseña en Supabase.
-   * Tras el registro el usuario debe verificar su email.
-   */
   const register = async ({ email, password }: RegisterParams): Promise<void> => {
     await signUpWithEmail(email, password);
-    // No iniciamos sesión: el usuario debe verificar el email
-    // y luego esperar activación manual del superadmin.
   };
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, isLoading, biometricsEnabled, login, logout, enableBiometrics, register }}
+      value={{
+        isAuthenticated,
+        isLoading,
+        biometricsEnabled,
+        loginWithCredentials,
+        loginWithBiometrics,
+        logout,
+        enableBiometrics,
+        register,
+      }}
     >
       {children}
     </AuthContext.Provider>

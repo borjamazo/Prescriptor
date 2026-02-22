@@ -39,16 +39,18 @@ const STATUS_MESSAGES: Record<Exclude<UserStatus, 'active'>, string> = {
 
 /**
  * Obtiene el status del perfil del usuario desde la tabla `profiles`.
+ * Usa una función RPC que bypasea RLS para evitar problemas de timing.
  * Devuelve null si no existe el perfil.
  */
 export async function getProfileStatus(userId: string): Promise<UserStatus | null> {
   const { data, error } = await supabase
-    .from('profiles')
-    .select('status')
-    .eq('id', userId)
+    .rpc('check_user_status', { user_id: userId })
     .single();
 
-  if (error || !data) return null;
+  if (error || !data) {
+    console.log('Error getting profile status:', error);
+    return null;
+  }
   return data.status as UserStatus;
 }
 

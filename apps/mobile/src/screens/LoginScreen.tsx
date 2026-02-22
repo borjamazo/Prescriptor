@@ -11,15 +11,22 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { TextInputField } from '../components/TextInputField';
 import { useAuth } from '../contexts/AuthContext';
 import { BiometricService } from '../services/BiometricService';
+import type { AuthStackParamList } from '../navigation/AuthStack';
 
 const BRAND_LOGO = require('../../assets/logo.png');
 
-export const LoginScreen = () => {
+type Props = {
+  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+};
+
+export const LoginScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +38,11 @@ export const LoginScreen = () => {
       return;
     }
     login();
+  };
+
+  const handleSocialLogin = (provider: string) => {
+    // TODO: conectar con Supabase OAuth
+    Alert.alert('Próximamente', `Inicio de sesión con ${provider} disponible pronto.`);
   };
 
   const handleBiometricLogin = async () => {
@@ -83,14 +95,50 @@ export const LoginScreen = () => {
               onRightIconPress={() => setShowPassword(v => !v)}
             />
 
+            {/* Iniciar sesión */}
             <View style={styles.buttonContainer}>
               <PrimaryButton title="Iniciar Sesión" onPress={handleLogin} />
             </View>
 
-            {/* Divider */}
+            {/* Registro link */}
+            <TouchableOpacity
+              style={styles.registerLink}
+              onPress={() => navigation.navigate('Register')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.registerLinkText}>
+                ¿No tienes cuenta?{' '}
+                <Text style={styles.registerLinkBold}>Regístrate</Text>
+              </Text>
+            </TouchableOpacity>
+
+            {/* Divider: o continúa con */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>o continúa con</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social buttons */}
+            <View style={styles.socialRow}>
+              <SocialIconButton
+                icon={<FontAwesome5 name="google" size={22} color="#EA4335" brand />}
+                onPress={() => handleSocialLogin('Google')}
+              />
+              <SocialIconButton
+                icon={<FontAwesome5 name="linkedin" size={22} color="#0A66C2" brand />}
+                onPress={() => handleSocialLogin('LinkedIn')}
+              />
+              <SocialIconButton
+                icon={<FontAwesome5 name="facebook" size={22} color="#1877F2" brand />}
+                onPress={() => handleSocialLogin('Facebook')}
+              />
+            </View>
+
+            {/* Divider: o usa */}
+            <View style={[styles.divider, styles.dividerSpacingTop]}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>o usa</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -103,22 +151,13 @@ export const LoginScreen = () => {
               <Ionicons name="finger-print" size={22} color="#5551F5" style={styles.biometricIcon} />
               <Text style={styles.biometricText}>Acceso con Huella</Text>
             </TouchableOpacity>
-
-            {/* Demo hint */}
-            <View style={styles.demoHint}>
-              <Text style={styles.demoText}>
-                <Text style={styles.demoBold}>Demo: </Text>
-                Usa cualquier email y contraseña{' '}
-              </Text>
-              <Text style={styles.demoPassword}>demo123</Text>
-            </View>
           </View>
 
           {/* ── Footer ── */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
+            {/*<Text style={styles.footerText}>
               Sistema seguro con cifrado de extremo a extremo
-            </Text>
+            </Text>*/}
             <Text style={styles.footerText}>
               © 2026 Prescriptor Pro • Versión 2.1.0
             </Text>
@@ -128,6 +167,25 @@ export const LoginScreen = () => {
     </SafeAreaView>
   );
 };
+
+// ── Social Icon Button ────────────────────────────────────────────────────────
+
+interface SocialIconButtonProps {
+  icon: React.ReactNode;
+  onPress: () => void;
+}
+
+const SocialIconButton = ({ icon, onPress }: SocialIconButtonProps) => (
+  <TouchableOpacity
+    style={styles.socialIconButton}
+    onPress={onPress}
+    activeOpacity={0.8}
+  >
+    {icon}
+  </TouchableOpacity>
+);
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -145,7 +203,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 16,
   },
   logoContainer: {
     width: 90,
@@ -177,12 +235,27 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 4,
+    marginBottom: 14,
+  },
+  registerLink: {
+    alignItems: 'center',
     marginBottom: 20,
+  },
+  registerLinkText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  registerLinkBold: {
+    color: '#5551F5',
+    fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  dividerSpacingTop: {
+    marginTop: 6,
   },
   dividerLine: {
     flex: 1,
@@ -191,8 +264,24 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: 12,
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
+  },
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 6,
+  },
+  socialIconButton: {
+    width: 60,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
   },
   biometricButton: {
     flexDirection: 'row',
@@ -202,7 +291,6 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     borderRadius: 12,
     height: 52,
-    marginBottom: 20,
   },
   biometricIcon: {
     marginRight: 8,
@@ -212,33 +300,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 15,
   },
-  demoHint: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  demoText: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  demoBold: {
-    fontWeight: 'bold',
-    color: '#374151',
-  },
-  demoPassword: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#5551F5',
-  },
   footer: {
     alignItems: 'center',
-    marginTop: 28,
+    marginTop: 16,
   },
   footerText: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.65)',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 0,
   },
 });

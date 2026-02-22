@@ -4,11 +4,14 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start",
+    "dev": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && next dev --port 3000'",
+    "build": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && next build'",
+    "start": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && next start'",
     "lint": "eslint --max-warnings 0",
     "check-types": "next typegen && tsc --noEmit"
+  },
+  "engines": {
+    "node": "20.19.3"
   },
   "dependencies": {
     "@repo/ui": "*",

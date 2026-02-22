@@ -14,11 +14,12 @@
     "typescript": "5.9.2"
   },
   "engines": {
-    "node": ">=18"
+    "node": "20.19.3"
   },
   "packageManager": "npm@10.8.2",
   "workspaces": [
     "apps/docs",
+    "apps/dashboard",
     "packages/*"
   ]
 }

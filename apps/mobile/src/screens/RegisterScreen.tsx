@@ -24,7 +24,6 @@ type Props = {
 };
 
 export const RegisterScreen = ({ navigation }: Props) => {
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -34,7 +33,7 @@ export const RegisterScreen = ({ navigation }: Props) => {
   const { register } = useAuth();
 
   const handleRegister = async () => {
-    if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
     }
@@ -49,11 +48,11 @@ export const RegisterScreen = ({ navigation }: Props) => {
 
     setLoading(true);
     try {
-      await register({ fullName, email, password });
+      await register({ email, password });
       Alert.alert(
         '¡Registro completado!',
         'Hemos enviado un email de verificación a tu correo. Verifica tu cuenta y espera la activación por parte del equipo de Prescriptor.',
-        [{ text: 'Entendido', onPress: () => navigation.navigate('Login') }]
+        [{ text: 'Entendido', onPress: () => navigation.navigate('Login') }],
       );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al crear la cuenta';
@@ -85,14 +84,6 @@ export const RegisterScreen = ({ navigation }: Props) => {
 
           {/* ── Card ── */}
           <View style={styles.card}>
-            {/*<TextInputField
-              label="Nombre completo"
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Dr. Juan García"
-              leftIcon="person-outline"
-              autoCapitalize="words"
-            />*/}
             <TextInputField
               label="Email"
               value={email}
@@ -152,9 +143,6 @@ export const RegisterScreen = ({ navigation }: Props) => {
 
           {/* ── Footer ── */}
           <View style={styles.footer}>
-           {/*} <Text style={styles.footerText}>
-              Sistema seguro con cifrado de extremo a extremo
-            </Text>*/}
             <Text style={styles.footerText}>
               © 2026 Prescriptor Pro • Versión 2.1.0
             </Text>
@@ -245,6 +233,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.65)',
     textAlign: 'center',
-    marginBottom: 0,
   },
 });

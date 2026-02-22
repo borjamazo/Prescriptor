@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { getSession, signInWithEmail, signOut, signUpWithEmail } from '../services/SupabaseService';
 
 interface RegisterParams {
-  fullName: string;
   email: string;
   password: string;
 }
@@ -11,7 +11,7 @@ interface AuthContextType {
   isLoading: boolean;
   biometricsEnabled: boolean;
   login: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   enableBiometrics: () => void;
   register: (params: RegisterParams) => Promise<void>;
 }
@@ -24,11 +24,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load persisted auth state / initial app data here.
-    // Replace the body with real async work (e.g., Supabase session restore).
     const init = async () => {
       try {
-        // TODO: restore session from Supabase
+        const session = await getSession();
+        setIsAuthenticated(session !== null);
       } finally {
         setIsLoading(false);
       }
@@ -36,9 +35,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     init();
   }, []);
 
+  // Usado para login biométrico / stub (sin credenciales)
   const login = () => setIsAuthenticated(true);
 
-  const logout = () => {
+  const logout = async () => {
+    await signOut();
     setIsAuthenticated(false);
     setBiometricsEnabled(false);
   };
@@ -46,19 +47,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const enableBiometrics = () => setBiometricsEnabled(true);
 
   /**
-   * Registers a new user.
-   * TODO: connect to Supabase Auth (supabase.auth.signUp) when credentials are configured.
+   * Registra un nuevo usuario con email y contraseña en Supabase.
+   * Tras el registro el usuario debe verificar su email.
    */
-  const register = async (_params: RegisterParams): Promise<void> => {
-    // Simulate network delay
-    await new Promise<void>(resolve => setTimeout(resolve, 1200));
-    // TODO: replace with real Supabase call:
-    // const { error } = await supabase.auth.signUp({
-    //   email: params.email,
-    //   password: params.password,
-    //   options: { data: { full_name: params.fullName } },
-    // });
-    // if (error) throw new Error(error.message);
+  const register = async ({ email, password }: RegisterParams): Promise<void> => {
+    await signUpWithEmail(email, password);
+    // No iniciamos sesión: el usuario debe verificar el email
+    // y luego esperar activación manual del superadmin.
   };
 
   return (

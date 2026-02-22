@@ -21,7 +21,8 @@ export const meta: MetaFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { headers } = await requireSuperAdmin(request);
-  const { supabase } = createSupabaseServerClient(request);
+  const { createSupabaseServiceClient } = await import("~/lib/supabase.server");
+  const supabase = createSupabaseServiceClient();
 
   const url = new URL(request.url);
   const dateFrom = url.searchParams.get("from") ?? format(subDays(new Date(), 29), "yyyy-MM-dd");

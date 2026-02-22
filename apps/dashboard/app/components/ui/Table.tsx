@@ -18,6 +18,7 @@ interface TableProps<T> {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (key: string) => void;
+  onRowClick?: (row: T) => void;
   className?: string;
   rowKey: (row: T) => string;
 }
@@ -31,6 +32,7 @@ export function Table<T = any>({
   sortBy,
   sortOrder,
   onSort,
+  onRowClick,
   className,
   rowKey,
 }: TableProps<T>) {
@@ -93,7 +95,11 @@ export function Table<T = any>({
             : data.map((row) => (
                 <tr
                   key={rowKey(row)}
-                  className="transition-colors hover:bg-surface-50 dark:hover:bg-surface-750"
+                  onClick={() => onRowClick?.(row)}
+                  className={cn(
+                    "transition-colors hover:bg-surface-50 dark:hover:bg-surface-750",
+                    onRowClick && "cursor-pointer"
+                  )}
                 >
                   {columns.map((col) => (
                     <td

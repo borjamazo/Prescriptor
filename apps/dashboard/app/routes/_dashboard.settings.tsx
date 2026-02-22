@@ -46,7 +46,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const { headers } = await requireSuperAdmin(request);
-  const { supabase } = createSupabaseServerClient(request);
+  const { createSupabaseServiceClient } = await import("~/lib/supabase.server");
+  const supabase = createSupabaseServiceClient();
   const formData = await request.formData();
   const intent = formData.get("intent");
 

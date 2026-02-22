@@ -34,7 +34,8 @@ const documentSchema = z.object({
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { headers } = await requireSuperAdmin(request);
-  const { supabase } = createSupabaseServerClient(request);
+  const { createSupabaseServiceClient } = await import("~/lib/supabase.server");
+  const supabase = createSupabaseServiceClient();
 
   const { data: documents, error } = await supabase
     .from("legal_documents")
@@ -49,7 +50,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const { profile, headers } = await requireSuperAdmin(request);
-  const { supabase } = createSupabaseServerClient(request);
+  const { createSupabaseServiceClient } = await import("~/lib/supabase.server");
+  const supabase = createSupabaseServiceClient();
   const formData = await request.formData();
 
   const intent = formData.get("intent");

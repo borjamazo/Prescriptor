@@ -54,7 +54,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loadProfile = async () => {
     try {
       const profile = await getCurrentUserProfile();
-      console.log(profile);
       setUserProfile(profile);
     } catch (error) {
       console.error('Error loading profile:', error);

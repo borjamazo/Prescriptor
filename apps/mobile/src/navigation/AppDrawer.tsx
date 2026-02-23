@@ -8,6 +8,7 @@ import { SignScreen } from '../screens/SignScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import { PrescriptionCreateScreen } from '../screens/PrescriptionCreateScreen';
+import { PrescriptionBlocksScreen } from '../screens/PrescriptionBlocksScreen';
 import { HelpCenterScreen } from '../screens/HelpCenterScreen';
 import { TermsOfServiceScreen } from '../screens/TermsOfServiceScreen';
 
@@ -15,6 +16,7 @@ export type AppStackParamList = {
   MainTabs: undefined;
   Account: undefined;
   PrescriptionCreate: undefined;
+  PrescriptionBlocks: undefined;
   HelpCenter: undefined;
   TermsOfService: undefined;
 };
@@ -89,10 +91,11 @@ const MainTabs = () => (
 
 export const AppStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="MainTabs"           component={MainTabs} />
-    <Stack.Screen name="Account"            component={AccountScreen} />
-    <Stack.Screen name="PrescriptionCreate" component={PrescriptionCreateScreen} />
-    <Stack.Screen name="HelpCenter"         component={HelpCenterScreen} />
-    <Stack.Screen name="TermsOfService"     component={TermsOfServiceScreen} />
+    <Stack.Screen name="MainTabs"            component={MainTabs} />
+    <Stack.Screen name="Account"             component={AccountScreen} />
+    <Stack.Screen name="PrescriptionCreate"  component={PrescriptionCreateScreen} />
+    <Stack.Screen name="PrescriptionBlocks"  component={PrescriptionBlocksScreen} />
+    <Stack.Screen name="HelpCenter"          component={HelpCenterScreen} />
+    <Stack.Screen name="TermsOfService"      component={TermsOfServiceScreen} />
   </Stack.Navigator>
 );

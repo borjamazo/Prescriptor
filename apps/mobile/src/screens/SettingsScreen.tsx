@@ -139,6 +139,7 @@ export const SettingsScreen = () => {
             label="Configuración de Recetas"
             subtitle="Gestionar PDFs y números de serie"
             showSeparator={false}
+            onPress={() => (navigation as any).navigate('PrescriptionBlocks')}
           />
         </View>
 

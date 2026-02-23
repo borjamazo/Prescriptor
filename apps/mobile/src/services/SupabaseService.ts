@@ -24,6 +24,23 @@ export type UserStatus =
   | 'suspended'
   | 'banned';
 
+export type AuthProvider = 'email' | 'google' | 'facebook' | 'linkedin';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  phone: string | null;
+  date_of_birth: string | null;
+  country: string | null;
+  city: string | null;
+  status: UserStatus;
+  auth_provider: AuthProvider;
+  created_at: string;
+  last_sign_in_at: string | null;
+}
+
 const STATUS_MESSAGES: Record<Exclude<UserStatus, 'active'>, string> = {
   pending_email:
     'Debes verificar tu email antes de poder acceder. Revisa tu bandeja de entrada.',
@@ -120,4 +137,62 @@ export async function getActiveSession(): Promise<boolean> {
   }
 
   return true;
+}
+
+/**
+ * Obtiene el perfil completo del usuario actual.
+ * Usa una función RPC que bypasea RLS para evitar problemas de permisos.
+ */
+export async function getCurrentUserProfile(): Promise<UserProfile | null> {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.log('Error getting user:', userError);
+      return null;
+    }
+    
+    if (!user) {
+      console.log('No user found');
+      return null;
+    }
+
+    console.log('Getting profile for user:', user.id);
+
+    // Usar función RPC que bypasea RLS
+    const { data, error } = await supabase
+      .rpc('get_current_user_profile')
+      .single();
+
+    if (error) {
+      console.log('Error getting profile via RPC:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.log('No profile data found');
+      return null;
+    }
+
+    console.log('Profile loaded successfully:', data.email);
+    return data as UserProfile;
+  } catch (error) {
+    console.error('Exception in getCurrentUserProfile:', error);
+    return null;
+  }
+}
+
+/**
+ * Actualiza el perfil del usuario actual.
+ */
+export async function updateUserProfile(updates: Partial<UserProfile>): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No hay usuario autenticado');
+
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', user.id);
+
+  if (error) throw new Error(error.message);
 }

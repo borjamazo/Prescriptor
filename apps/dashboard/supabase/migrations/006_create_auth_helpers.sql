@@ -17,8 +17,49 @@ BEGIN
 END;
 $$;
 
+-- Function to get current user profile (bypasses RLS for own profile)
+CREATE OR REPLACE FUNCTION public.get_current_user_profile()
+RETURNS TABLE (
+  id UUID,
+  email TEXT,
+  full_name TEXT,
+  avatar_url TEXT,
+  phone TEXT,
+  date_of_birth DATE,
+  country TEXT,
+  city TEXT,
+  status user_status,
+  auth_provider auth_provider,
+  created_at TIMESTAMPTZ,
+  last_sign_in_at TIMESTAMPTZ
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    p.id,
+    p.email,
+    p.full_name,
+    p.avatar_url,
+    p.phone,
+    p.date_of_birth,
+    p.country,
+    p.city,
+    p.status,
+    p.auth_provider,
+    p.created_at,
+    p.last_sign_in_at
+  FROM public.profiles p
+  WHERE p.id = auth.uid();
+END;
+$$;
+
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION public.check_user_status(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.check_user_status(UUID) TO anon;
+GRANT EXECUTE ON FUNCTION public.get_current_user_profile() TO authenticated;
 
 COMMENT ON FUNCTION public.check_user_status IS 'Check user status and role during login. Bypasses RLS for authentication purposes.';
+COMMENT ON FUNCTION public.get_current_user_profile IS 'Get current user profile. Bypasses RLS for own profile access.';

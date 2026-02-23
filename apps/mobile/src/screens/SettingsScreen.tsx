@@ -21,7 +21,7 @@ import {
 
 // ─── Profile Card ─────────────────────────────────────────────────
 
-const ProfileCard = ({ profile }: { profile: DoctorProfile }) => (
+const ProfileCard = ({ profile, onEditPress }: { profile: DoctorProfile; onEditPress: () => void }) => (
   <View style={styles.profileCard}>
     <View style={styles.profileTop}>
       <View style={styles.avatar}>
@@ -29,47 +29,44 @@ const ProfileCard = ({ profile }: { profile: DoctorProfile }) => (
       </View>
       <View style={styles.profileInfo}>
         <Text style={styles.profileName}>{profile.name}</Text>
-        <Text style={styles.profileSpecialty}>{profile.specialty}</Text>
-        <Text style={styles.profileLicense}>{profile.license}</Text>
+        <Text style={styles.profileEmail}>{profile.email}</Text>
+        {profile.phone && (
+          <Text style={styles.profilePhone}>{profile.phone}</Text>
+        )}
       </View>
     </View>
 
-    <View style={styles.statsDivider} />
-
-    <View style={styles.statsRow}>
-      <View style={styles.statItem}>
-        <Text style={styles.statValue}>{profile.stats.prescriptions}</Text>
-        <Text style={styles.statLabel}>Prescriptions</Text>
-      </View>
-      <View style={styles.statSeparator} />
-      <View style={styles.statItem}>
-        <Text style={styles.statValue}>{profile.stats.accuracy}</Text>
-        <Text style={styles.statLabel}>Accuracy</Text>
-      </View>
-      <View style={styles.statSeparator} />
-      <View style={styles.statItem}>
-        <Text style={styles.statValue}>{profile.stats.rating}</Text>
-        <Text style={styles.statLabel}>Rating</Text>
-      </View>
-    </View>
+    <TouchableOpacity
+      style={styles.editProfileButton}
+      onPress={onEditPress}
+      activeOpacity={0.8}
+    >
+      <Ionicons name="create-outline" size={18} color="#5551F5" />
+      <Text style={styles.editProfileText}>Editar Perfil</Text>
+    </TouchableOpacity>
   </View>
 );
 
 // ─── Screen ───────────────────────────────────────────────────────
 
 export const SettingsScreen = () => {
-  const { logout } = useAuth();
+  const { logout, userProfile, refreshProfile } = useAuth();
   const [profile, setProfile] = useState<DoctorProfile | null>(null);
   const [prefs, setPrefs] = useState<UserPreferences>({
     notifications: true,
-    twoFactorAuth: true,
+    twoFactorAuth: false,
     autoSave: true,
   });
 
   useEffect(() => {
-    ProfileService.getProfile().then(setProfile);
+    loadProfile();
     ProfileService.getPreferences().then(setPrefs);
-  }, []);
+  }, [userProfile]);
+
+  const loadProfile = async () => {
+    const data = await ProfileService.getProfile();
+    setProfile(data);
+  };
 
   const updatePref = (key: keyof UserPreferences, value: boolean) => {
     const updated = { ...prefs, [key]: value };
@@ -83,6 +80,10 @@ export const SettingsScreen = () => {
     logout();
   };
 
+  const handleEditProfile = () => {
+    (navigation as any).navigate('Account');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView
@@ -91,62 +92,77 @@ export const SettingsScreen = () => {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Profile */}
-        {profile && <ProfileCard profile={profile} />}
+        {profile && <ProfileCard profile={profile} onEditPress={handleEditProfile} />}
 
         {/* Account Information */}
-        <SectionLabel title="ACCOUNT INFORMATION" />
+        <SectionLabel title="INFORMACIÓN DE CUENTA" />
         <View style={styles.card}>
           <SettingsRow
             type="chevron"
-            icon="mail-outline"
+            icon="person-outline"
             iconBg="#EEF2FF"
             iconColor="#5551F5"
+            label="Mi Perfil"
+            subtitle="Ver y editar información personal"
+            onPress={handleEditProfile}
+          />
+          <SettingsRow
+            type="chevron"
+            icon="mail-outline"
+            iconBg="#ECFDF5"
+            iconColor="#059669"
             label="Email"
             subtitle={profile?.email}
           />
           <SettingsRow
             type="chevron"
             icon="call-outline"
-            iconBg="#ECFDF5"
-            iconColor="#059669"
-            label="Phone"
-            subtitle={profile?.phone}
+            iconBg="#EFF6FF"
+            iconColor="#3B82F6"
+            label="Teléfono"
+            subtitle={profile?.phone || 'No configurado'}
+            onPress={handleEditProfile}
           />
           <SettingsRow
             type="chevron"
-            icon="briefcase-outline"
-            iconBg="#EFF6FF"
-            iconColor="#3B82F6"
-            label="Hospital"
-            subtitle={profile?.hospital}
+            icon="location-outline"
+            iconBg="#FEF3C7"
+            iconColor="#D97706"
+            label="Ubicación"
+            subtitle={
+              profile?.city && profile?.country
+                ? `${profile.city}, ${profile.country}`
+                : profile?.country || profile?.city || 'No configurado'
+            }
+            onPress={handleEditProfile}
             showSeparator={false}
           />
         </View>
 
         {/* Configuration */}
-        <SectionLabel title="CONFIGURATION" />
+        <SectionLabel title="CONFIGURACIÓN" />
         <View style={styles.card}>
           <SettingsRow
             type="chevron"
             icon="settings-outline"
             iconBg="#F1F5F9"
             iconColor="#64748B"
-            label="Receipt Configuration"
-            subtitle="Manage PDF receipts and serial numbers"
+            label="Configuración de Recetas"
+            subtitle="Gestionar PDFs y números de serie"
             showSeparator={false}
           />
         </View>
 
         {/* Preferences */}
-        <SectionLabel title="PREFERENCES" />
+        <SectionLabel title="PREFERENCIAS" />
         <View style={styles.card}>
           <SettingsRow
             type="toggle"
             icon="notifications-outline"
             iconBg="#ECFDF5"
             iconColor="#059669"
-            label="Notifications"
-            subtitle="Push and email alerts"
+            label="Notificaciones"
+            subtitle="Alertas push y email"
             value={prefs.notifications}
             onValueChange={v => updatePref('notifications', v)}
           />
@@ -155,8 +171,8 @@ export const SettingsScreen = () => {
             icon="shield-outline"
             iconBg="#F5F3FF"
             iconColor="#7C3AED"
-            label="Two-Factor Auth"
-            subtitle="Extra security layer"
+            label="Autenticación de Dos Factores"
+            subtitle="Capa extra de seguridad"
             value={prefs.twoFactorAuth}
             onValueChange={v => updatePref('twoFactorAuth', v)}
           />
@@ -165,8 +181,8 @@ export const SettingsScreen = () => {
             icon="document-text-outline"
             iconBg="#EFF6FF"
             iconColor="#3B82F6"
-            label="Auto-Save"
-            subtitle="Save drafts automatically"
+            label="Guardado Automático"
+            subtitle="Guardar borradores automáticamente"
             value={prefs.autoSave}
             onValueChange={v => updatePref('autoSave', v)}
             showSeparator={false}
@@ -174,15 +190,15 @@ export const SettingsScreen = () => {
         </View>
 
         {/* Support */}
-        <SectionLabel title="SUPPORT" />
+        <SectionLabel title="SOPORTE" />
         <View style={styles.card}>
           <SettingsRow
             type="chevron"
             icon="help-circle-outline"
             iconBg="#FFFBEB"
             iconColor="#D97706"
-            label="Help Center"
-            subtitle="FAQs and tutorials"
+            label="Centro de Ayuda"
+            subtitle="FAQs y tutoriales"
             onPress={() => (navigation as any).navigate('HelpCenter')}
           />
           <SettingsRow
@@ -190,8 +206,8 @@ export const SettingsScreen = () => {
             icon="document-outline"
             iconBg="#EFF6FF"
             iconColor="#3B82F6"
-            label="Terms of Service"
-            subtitle="Legal information"
+            label="Términos de Servicio"
+            subtitle="Información legal"
             showSeparator={false}
             onPress={() => (navigation as any).navigate('TermsOfService')}
           />
@@ -239,7 +255,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   avatar: {
     width: 64,
@@ -262,43 +278,29 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  profileSpecialty: {
+  profileEmail: {
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 14,
     marginTop: 2,
   },
-  profileLicense: {
+  profilePhone: {
     color: 'rgba(255, 255, 255, 0.65)',
     fontSize: 13,
     marginTop: 2,
   },
-  statsDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: 16,
-  },
-  statsRow: {
+  editProfileButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
   },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  statSeparator: {
-    width: 1,
-    height: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  editProfileText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#5551F5',
   },
 
   // Section card wrapper

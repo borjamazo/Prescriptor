@@ -11,15 +11,24 @@ import {
   Prescription,
   PrescriptionService,
 } from '../services/PrescriptionService';
+import { useAuth } from '../contexts/AuthContext';
 
 const formatDate = (d: Date) =>
   d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
 export const HomeScreen = () => {
   const navigation = useNavigation();
+  const { userProfile } = useAuth();
   const [search, setSearch] = useState('');
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ pending: 0, signedToday: 0 });
+
+  // Obtener nombre del usuario
+  const getUserName = () => {
+    if (!userProfile) return 'Doctor';
+    if (userProfile.full_name) return userProfile.full_name;
+    return userProfile.email.split('@')[0];
+  };
 
   useEffect(() => {
     PrescriptionService.getAll().then(setPrescriptions);
@@ -44,7 +53,7 @@ export const HomeScreen = () => {
       >
         {/* ── Header card ── */}
         <View style={styles.headerCard}>
-          <Text style={styles.welcomeTitle}>Welcome back, Dr. Smith</Text>
+          <Text style={styles.welcomeTitle}>Bienvenido, {getUserName()}</Text>
           <Text style={styles.dateText}>{formatDate(new Date())}</Text>
           <View style={styles.statsRow}>
             <StatCard value={stats.pending} label="Pending" />

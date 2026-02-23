@@ -9,15 +9,18 @@ import android.media.MediaScannerConnection
 import android.os.Build
 import android.security.KeyChain
 import android.security.KeyChainAliasCallback
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.WritableMap
 import com.pdftron.pdf.DigitalSignatureField
 import com.pdftron.pdf.PDFDoc
 import com.pdftron.pdf.PDFNet
 import com.pdftron.pdf.Rect
 import com.pdftron.pdf.Date
+import com.pdftron.pdf.TextExtractor
 import com.pdftron.pdf.annots.SignatureWidget
 import com.pdftron.sdf.SDFDoc
 import com.pdftron.crypto.DigestAlgorithm
@@ -437,6 +440,145 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     return byteArrayOf(
       0x30, digestInfo.size.toByte() // SEQUENCE tag and length
     ) + digestInfo
+  }
+
+  // ── Prescription reader methods ────────────────────────────────────────────
+
+  /**
+   * Returns the total page count of a PDF.
+   * pageIndex in our block system maps directly to Apryse page (pageIndex + 1).
+   */
+  @ReactMethod
+  fun getPdfPageCount(fileUri: String, password: String, promise: Promise) {
+    Thread {
+      try {
+        ensurePdfNetInitialized()
+        val inputFile = resolveInputToFile(fileUri)
+        if (!inputFile.exists()) {
+          promise.reject("E_NOT_FOUND", "PDF file not found: ${inputFile.absolutePath}")
+          return@Thread
+        }
+        val doc = PDFDoc(inputFile.absolutePath)
+        openDocWithPassword(doc, password)
+        val count = doc.pageCount
+        doc.close()
+        promise.resolve(count)
+      } catch (e: Exception) {
+        promise.reject("E_PAGE_COUNT", e.message ?: "Failed to count pages", e)
+      }
+    }.start()
+  }
+
+  /**
+   * Extracts text from a single PDF page (0-based pageIndex).
+   * Parses "Nº de Receta:" to return the physical prescription number.
+   *
+   * Returns a map with:
+   *   - pageIndex: Int (echo of input)
+   *   - prescriptionNumber: String (e.g. "29-8448969", empty if not found)
+   *   - rawText: String (full extracted text for debugging)
+   */
+  @ReactMethod
+  fun extractPageText(fileUri: String, pageIndex: Int, password: String, promise: Promise) {
+    Thread {
+      try {
+        ensurePdfNetInitialized()
+        val inputFile = resolveInputToFile(fileUri)
+        if (!inputFile.exists()) {
+          promise.reject("E_NOT_FOUND", "PDF file not found: ${inputFile.absolutePath}")
+          return@Thread
+        }
+        val doc = PDFDoc(inputFile.absolutePath)
+        openDocWithPassword(doc, password)
+
+        val aprysePageNum = pageIndex + 1   // Apryse pages are 1-based
+        val page = doc.getPage(aprysePageNum)
+        if (page == null || !page.isValid) {
+          doc.close()
+          promise.reject("E_INVALID_PAGE", "Page $aprysePageNum not found (total: ${doc.pageCount})")
+          return@Thread
+        }
+
+        val extractor = TextExtractor()
+        extractor.begin(page)
+        val rawText = extractor.getAsText() ?: ""
+        extractor.destroy()
+        doc.close()
+
+        val rxNumber = parseRxNumber(rawText)
+
+        val result: WritableMap = Arguments.createMap()
+        result.putInt("pageIndex", pageIndex)
+        result.putString("prescriptionNumber", rxNumber)
+        result.putString("rawText", rawText)
+        promise.resolve(result)
+      } catch (e: Exception) {
+        promise.reject("E_EXTRACT_TEXT", e.message ?: "Text extraction failed", e)
+      }
+    }.start()
+  }
+
+  /**
+   * Lists all AcroForm field names in the PDF (empty array if the document is flat/non-interactive).
+   * Useful to determine whether the prescription PDF is a fillable form.
+   */
+  @ReactMethod
+  fun listFormFields(fileUri: String, password: String, promise: Promise) {
+    Thread {
+      try {
+        ensurePdfNetInitialized()
+        val inputFile = resolveInputToFile(fileUri)
+        if (!inputFile.exists()) {
+          promise.reject("E_NOT_FOUND", "PDF file not found")
+          return@Thread
+        }
+        val doc = PDFDoc(inputFile.absolutePath)
+        openDocWithPassword(doc, password)
+
+        val fieldNames = Arguments.createArray()
+        val itr = doc.getFieldIterator()
+        while (itr.hasNext()) {
+          val field = itr.next()
+          fieldNames.pushString(field?.name ?: "")
+        }
+        doc.close()
+        promise.resolve(fieldNames)
+      } catch (e: Exception) {
+        promise.reject("E_LIST_FIELDS", e.message ?: "Failed to list fields", e)
+      }
+    }.start()
+  }
+
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  /** Opens a PDFDoc with or without a password. */
+  private fun openDocWithPassword(doc: PDFDoc, password: String) {
+    if (password.isNotEmpty()) {
+      val ok = doc.initStdSecurityHandler(password)
+      if (!ok) throw IllegalArgumentException("Incorrect PDF password")
+    } else {
+      doc.initSecurityHandler()
+    }
+  }
+
+  /**
+   * Parses the physical prescription number (Nº de Receta) from extracted page text.
+   * Handles variations like "Nº de Receta:", "Nº Receta:", "Num. Receta:", etc.
+   */
+  private fun parseRxNumber(text: String): String {
+    val patterns = listOf(
+      Regex("""N[ºo°]\s*\.?\s*de\s*Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
+      Regex("""N[ºo°]\s*\.?\s*Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
+      Regex("""Num(?:ero)?\s*\.?\s*(?:de\s*)?Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
+    )
+    for (pattern in patterns) {
+      val match = pattern.find(text)
+      if (match != null) {
+        val value = match.groupValues[1].trim()
+        if (value.isNotEmpty()) return value
+      }
+    }
+    return ""
   }
 
   private fun verifySignedDocument(pdfPath: String) {

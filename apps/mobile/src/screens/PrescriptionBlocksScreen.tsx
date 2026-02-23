@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import DocumentPicker from 'react-native-document-picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
@@ -21,6 +22,7 @@ import {
   PrescriptionBlock,
   PrescriptionBlockService,
 } from '../services/PrescriptionBlockService';
+import { PdfReaderService } from '../services/PdfReaderService';
 
 // ─── Stat pill ────────────────────────────────────────────────────────────────
 
@@ -55,6 +57,7 @@ interface BlockCardProps {
   onDelete: () => void;
   onMarkUsed: () => void;
   onSetNext: () => void;
+  rxNumber?: string; // physical Nº de Receta of the next prescription
 }
 
 const BlockCard = ({
@@ -64,6 +67,7 @@ const BlockCard = ({
   onDelete,
   onMarkUsed,
   onSetNext,
+  rxNumber,
 }: BlockCardProps) => {
   const pending = block.totalRecetas - block.usedCount;
   const pct = block.totalRecetas > 0 ? block.usedCount / block.totalRecetas : 0;
@@ -140,6 +144,9 @@ const BlockCard = ({
           <Text style={[cardSt.nextSerial, isExhausted && cardSt.exhaustedText]}>
             {nextSerial}
           </Text>
+          {!isExhausted && rxNumber ? (
+            <Text style={cardSt.rxNumberText}>Nº Receta: {rxNumber}</Text>
+          ) : null}
         </View>
         {!isExhausted && (
           <TouchableOpacity style={cardSt.changeBtn} onPress={onSetNext} activeOpacity={0.8}>
@@ -217,9 +224,12 @@ interface SetNextState {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export const PrescriptionBlocksScreen = () => {
+  const navigation = useNavigation();
   const [blocks, setBlocks] = useState<PrescriptionBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  // Physical Nº de Receta per block id (fetched lazily after load)
+  const [rxNumbers, setRxNumbers] = useState<Record<string, string>>({});
 
   // Import modal
   const [importVisible, setImportVisible] = useState(false);
@@ -229,6 +239,8 @@ export const PrescriptionBlocksScreen = () => {
   const [pdfPwd, setPdfPwd] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [detectingPages, setDetectingPages] = useState(false);
+  const [detectingSerial, setDetectingSerial] = useState(false);
 
   // Set-next modal
   const [setNextState, setSetNextState] = useState<SetNextState | null>(null);
@@ -241,6 +253,24 @@ export const PrescriptionBlocksScreen = () => {
     try {
       const data = await PrescriptionBlockService.getAll();
       setBlocks(data);
+      // Fetch physical Rx number for each non-exhausted block (best-effort)
+      const numbers: Record<string, string> = {};
+      await Promise.all(
+        data
+          .filter(b => b.nextIndex < b.totalRecetas)
+          .map(async b => {
+            try {
+              const pwd = PrescriptionBlockService.decryptPwd(b.encryptedPwd);
+              const info = await PdfReaderService.extractPageText(b.fileUri, b.nextIndex, pwd);
+              if (info.prescriptionNumber) {
+                numbers[b.id] = info.prescriptionNumber;
+              }
+            } catch {
+              // silently ignore — PDF may not be accessible yet
+            }
+          }),
+      );
+      setRxNumbers(numbers);
     } finally {
       setLoading(false);
     }
@@ -267,15 +297,65 @@ export const PrescriptionBlocksScreen = () => {
         allowMultiSelection: false,
         copyTo: 'documentDirectory',
       });
-      setSelFile({
-        uri: result.fileCopyUri ?? result.uri,
-        name: result.name ?? 'recetas.pdf',
-      });
+      const fileUri = result.fileCopyUri ?? result.uri;
+      const fileName = result.name ?? 'recetas.pdf';
+      setSelFile({ uri: fileUri, name: fileName });
+
+      // Auto-detect page count (try without password first)
+      await detectPageCount(fileUri, '');
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) {
         Alert.alert('Error', 'No se pudo seleccionar el archivo');
       }
     }
+  };
+
+  const detectPageCount = async (fileUri: string, password: string) => {
+    setDetectingPages(true);
+    setDetectingSerial(true);
+    try {
+      // Detectar número de páginas
+      const count = await PdfReaderService.getPageCount(fileUri, password);
+      if (count > 0) {
+        setTotalStr(String(count));
+      }
+
+      // Intentar detectar el número de receta de la primera página
+      let prescriptionNumber = '';
+      try {
+        const pageInfo = await PdfReaderService.extractPageText(fileUri, 0, password);
+        if (pageInfo.prescriptionNumber) {
+          setBlockSerial(pageInfo.prescriptionNumber);
+          prescriptionNumber = pageInfo.prescriptionNumber;
+        }
+      } catch (error) {
+        console.log('Could not extract prescription number:', error);
+      }
+
+      if (password && count > 0) {
+        Alert.alert(
+          '✓ Detectado',
+          `Se detectaron ${count} recetas en el PDF${prescriptionNumber ? `\nNúmero de receta: ${prescriptionNumber}` : ''}`
+        );
+      }
+    } catch (error) {
+      if (password) {
+        Alert.alert('Error', 'No se pudo leer el PDF. Verifica la contraseña.');
+      }
+    } finally {
+      setDetectingPages(false);
+      setDetectingSerial(false);
+    }
+  };
+
+  const handleRetryDetection = () => {
+    if (!selFile) {
+      return Alert.alert('Error', 'Primero selecciona un archivo PDF');
+    }
+    if (!pdfPwd.trim()) {
+      return Alert.alert('Contraseña requerida', 'Introduce la contraseña del PDF para detectar automáticamente el número de recetas');
+    }
+    detectPageCount(selFile.uri, pdfPwd);
   };
 
   const handleImport = async () => {
@@ -397,16 +477,22 @@ export const PrescriptionBlocksScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* ── Screen header ── */}
-      <View style={styles.screenHeader}>
-        <Text style={styles.screenTitle}>Bloques de Recetas</Text>
+      {/* Header */}
+      <View style={styles.headerBar}>
         <TouchableOpacity
-          style={styles.importBtn}
-          onPress={() => setImportVisible(true)}
-          activeOpacity={0.85}
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
         >
-          <Ionicons name="add" size={20} color="#fff" />
-          <Text style={styles.importBtnText}>Importar</Text>
+          <Ionicons name="arrow-back" size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Bloques de Recetas</Text>
+        <TouchableOpacity
+          style={styles.headerActionButton}
+          onPress={() => setImportVisible(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="add" size={24} color="#5551F5" />
         </TouchableOpacity>
       </View>
 
@@ -437,6 +523,7 @@ export const PrescriptionBlocksScreen = () => {
               onDelete={() => handleDelete(item.id, item.filename)}
               onMarkUsed={() => handleMarkUsed(item.id)}
               onSetNext={() => openSetNext(item)}
+              rxNumber={rxNumbers[item.id]}
             />
           )}
         />
@@ -502,21 +589,39 @@ export const PrescriptionBlocksScreen = () => {
               </TouchableOpacity>
 
               {/* ── Block serial ── */}
-              <Text style={styles.fieldLabel}>Número de serie del bloque *</Text>
+              <View style={styles.fieldLabelRow}>
+                <Text style={styles.fieldLabel}>Número de receta *</Text>
+                {detectingSerial && (
+                  <ActivityIndicator size="small" color="#5551F5" style={styles.detectSpinner} />
+                )}
+              </View>
+              <Text style={styles.fieldHint}>
+                {detectingSerial
+                  ? 'Detectando número de receta del PDF…'
+                  : 'Número de receta del bloque (se autodetecta del PDF si es posible)'}
+              </Text>
               <TextInput
                 style={styles.textInput}
                 value={blockSerial}
                 onChangeText={setBlockSerial}
-                placeholder="Ej: B2024-001"
+                placeholder="Ej: 29-8448969"
                 autoCapitalize="characters"
                 autoCorrect={false}
                 returnKeyType="next"
+                editable={!detectingSerial}
               />
 
               {/* ── Total prescriptions ── */}
-              <Text style={styles.fieldLabel}>Total de recetas *</Text>
+              <View style={styles.fieldLabelRow}>
+                <Text style={styles.fieldLabel}>Total de recetas *</Text>
+                {detectingPages && (
+                  <ActivityIndicator size="small" color="#5551F5" style={styles.detectSpinner} />
+                )}
+              </View>
               <Text style={styles.fieldHint}>
-                Número de páginas del PDF (una página = una receta)
+                {detectingPages
+                  ? 'Detectando número de páginas…'
+                  : 'Número de páginas del PDF (una página = una receta)'}
               </Text>
               <TextInput
                 style={styles.textInput}
@@ -525,12 +630,13 @@ export const PrescriptionBlocksScreen = () => {
                 placeholder="Ej: 25"
                 keyboardType="number-pad"
                 returnKeyType="next"
+                editable={!detectingPages}
               />
 
               {/* ── PDF password ── */}
               <Text style={styles.fieldLabel}>Contraseña del PDF</Text>
               <Text style={styles.fieldHint}>
-                Necesaria para abrir el PDF protegido. Se guardará cifrada en el dispositivo.
+                Si el PDF está protegido, introduce la contraseña para autodetectar el número de recetas. Se guardará cifrada en el dispositivo.
               </Text>
               <View style={styles.pwdRow}>
                 <TextInput
@@ -553,6 +659,21 @@ export const PrescriptionBlocksScreen = () => {
                   />
                 </TouchableOpacity>
               </View>
+
+              {/* ── Retry detection button ── */}
+              {selFile && !totalStr && pdfPwd && (
+                <TouchableOpacity
+                  style={styles.retryDetectionBtn}
+                  onPress={handleRetryDetection}
+                  disabled={detectingPages}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="refresh-outline" size={18} color="#5551F5" />
+                  <Text style={styles.retryDetectionText}>
+                    Detectar recetas con contraseña
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {/* ── Actions ── */}
               <View style={styles.modalActions}>
@@ -771,6 +892,12 @@ const cardSt = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 2,
   },
+  rxNumberText: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
   nextSerial: {
     fontSize: 16,
     fontWeight: '700',
@@ -881,34 +1008,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  screenHeader: {
+  headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#5551F5',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  screenTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  importBtn: {
-    flexDirection: 'row',
+  backButton: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
+    justifyContent: 'center',
   },
-  importBtnText: {
-    fontSize: 14,
+  headerTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#111827',
+  },
+  headerActionButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loader: {
     marginTop: 60,
@@ -972,11 +1097,19 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 20,
   },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   fieldLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
     marginBottom: 6,
+  },
+  detectSpinner: {
+    marginLeft: 8,
   },
   fieldHint: {
     fontSize: 12,
@@ -1036,6 +1169,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
+  },
+  retryDetectionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#5551F5',
+    backgroundColor: '#EEF2FF',
+    marginBottom: 18,
+  },
+  retryDetectionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5551F5',
   },
   modalActions: {
     flexDirection: 'row',

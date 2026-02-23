@@ -21,7 +21,7 @@ import {
 
 // ─── Profile Card ─────────────────────────────────────────────────
 
-const ProfileCard = ({ profile, onEditPress }: { profile: DoctorProfile; onEditPress: () => void }) => (
+const ProfileCard = ({ profile }: { profile: DoctorProfile }) => (
   <View style={styles.profileCard}>
     <View style={styles.profileTop}>
       <View style={styles.avatar}>
@@ -35,15 +35,6 @@ const ProfileCard = ({ profile, onEditPress }: { profile: DoctorProfile; onEditP
         )}
       </View>
     </View>
-
-    <TouchableOpacity
-      style={styles.editProfileButton}
-      onPress={onEditPress}
-      activeOpacity={0.8}
-    >
-      <Ionicons name="create-outline" size={18} color="#5551F5" />
-      <Text style={styles.editProfileText}>Editar Perfil</Text>
-    </TouchableOpacity>
   </View>
 );
 
@@ -92,7 +83,7 @@ export const SettingsScreen = () => {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Profile */}
-        {profile && <ProfileCard profile={profile} onEditPress={handleEditProfile} />}
+        {profile && <ProfileCard profile={profile} />}
 
         {/* Account Information */}
         <SectionLabel title="INFORMACIÓN DE CUENTA" />
@@ -107,7 +98,7 @@ export const SettingsScreen = () => {
             onPress={handleEditProfile}
           />
           <SettingsRow
-            type="chevron"
+            type="text"
             icon="mail-outline"
             iconBg="#ECFDF5"
             iconColor="#059669"
@@ -115,16 +106,15 @@ export const SettingsScreen = () => {
             subtitle={profile?.email}
           />
           <SettingsRow
-            type="chevron"
+            type="text"
             icon="call-outline"
             iconBg="#EFF6FF"
             iconColor="#3B82F6"
             label="Teléfono"
             subtitle={profile?.phone || 'No configurado'}
-            onPress={handleEditProfile}
           />
           <SettingsRow
-            type="chevron"
+            type="text"
             icon="location-outline"
             iconBg="#FEF3C7"
             iconColor="#D97706"
@@ -134,7 +124,6 @@ export const SettingsScreen = () => {
                 ? `${profile.city}, ${profile.country}`
                 : profile?.country || profile?.city || 'No configurado'
             }
-            onPress={handleEditProfile}
             showSeparator={false}
           />
         </View>
@@ -287,20 +276,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.65)',
     fontSize: 13,
     marginTop: 2,
-  },
-  editProfileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-  },
-  editProfileText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#5551F5',
   },
 
   // Section card wrapper

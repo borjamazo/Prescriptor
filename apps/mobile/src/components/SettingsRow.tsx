@@ -22,7 +22,11 @@ interface ToggleProps extends BaseProps {
   onValueChange: (value: boolean) => void;
 }
 
-type Props = ChevronProps | ToggleProps;
+interface TextProps extends BaseProps {
+  type: 'text';
+}
+
+type Props = ChevronProps | ToggleProps | TextProps;
 
 export const SettingsRow = (props: Props) => {
   const { icon, iconBg, iconColor, label, subtitle, showSeparator = true } = props;
@@ -38,14 +42,14 @@ export const SettingsRow = (props: Props) => {
       </View>
       {props.type === 'chevron' ? (
         <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
-      ) : (
+      ) : props.type === 'toggle' ? (
         <Switch
           value={props.value}
           onValueChange={props.onValueChange}
           trackColor={{ false: '#E5E7EB', true: '#111827' }}
           thumbColor="#ffffff"
         />
-      )}
+      ) : null}
     </View>
   );
 

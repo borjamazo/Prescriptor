@@ -184,15 +184,24 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
 
 /**
  * Actualiza el perfil del usuario actual.
+ * Usa una función RPC que bypasea RLS para evitar problemas de permisos.
  */
 export async function updateUserProfile(updates: Partial<UserProfile>): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No hay usuario autenticado');
 
-  const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', user.id);
+  // Usar función RPC que bypasea RLS
+  const { error } = await supabase.rpc('update_current_user_profile', {
+    p_full_name: updates.full_name ?? null,
+    p_phone: updates.phone ?? null,
+    p_date_of_birth: updates.date_of_birth ?? null,
+    p_country: updates.country ?? null,
+    p_city: updates.city ?? null,
+    p_avatar_url: updates.avatar_url ?? null,
+  });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error('Error updating profile via RPC:', error);
+    throw new Error(error.message);
+  }
 }

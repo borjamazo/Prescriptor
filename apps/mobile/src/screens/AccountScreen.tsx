@@ -14,9 +14,11 @@ import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { ProfileService, type DoctorProfile } from '../services/ProfileService';
 import { updateUserProfile } from '../services/SupabaseService';
+import { useAuth } from '../contexts/AuthContext';
 
 export const AccountScreen = () => {
   const navigation = useNavigation();
+  const { refreshProfile } = useAuth();
   const [profile, setProfile] = useState<DoctorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -51,7 +53,11 @@ export const AccountScreen = () => {
         city: editedProfile.city,
         date_of_birth: editedProfile.date_of_birth,
       });
+      
+      // Recargar perfil local y en el contexto
       await loadProfile();
+      await refreshProfile();
+      
       setEditing(false);
       Alert.alert('Éxito', 'Perfil actualizado correctamente');
     } catch (error) {

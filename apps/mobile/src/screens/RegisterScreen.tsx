@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,8 +15,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { TextInputField } from '../components/TextInputField';
 import { useAuth } from '../contexts/AuthContext';
 import type { AuthStackParamList } from '../navigation/AuthStack';
-
-const BRAND_LOGO = require('../../assets/logo.png');
+import { AppIcon } from '../components/AppIcon';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Register'>;
@@ -76,7 +74,7 @@ export const RegisterScreen = ({ navigation }: Props) => {
           {/* ── Header ── */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Image source={BRAND_LOGO} style={styles.logo} resizeMode="contain" />
+              <AppIcon size={100} />
             </View>
             <Text style={styles.welcomeTitle}>Crear cuenta</Text>
             <Text style={styles.welcomeSubtitle}>Únete a Prescriptor Pro</Text>
@@ -172,12 +170,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   logoContainer: {
-    width: 90,
+    width: 100,
     height: 100,
-  },
-  logo: {
-    width: '100%',
-    height: '100%',
+    marginBottom: 16,
   },
   welcomeTitle: {
     color: '#ffffff',

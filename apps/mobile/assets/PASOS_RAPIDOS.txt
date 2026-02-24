@@ -1,0 +1,68 @@
+═══════════════════════════════════════════════════════════
+  📱 ACTUALIZAR ICONO DE LA APP - PASOS RÁPIDOS
+═══════════════════════════════════════════════════════════
+
+✅ PASO 1: Convertir SVG a PNG
+   
+   Archivo: assets/app-logo.svg
+   
+   → Ve a: https://svgtopng.com/
+   → Sube: app-logo.svg
+   → Tamaño: 1024x1024px
+   → Descarga el PNG
+   → Guárdalo como: app-icon-source.png
+
+───────────────────────────────────────────────────────────
+
+✅ PASO 2: Generar iconos para Android e iOS
+   
+   → Ve a: https://www.appicon.co/
+   → Sube: app-icon-source.png
+   → Marca: ✓ iOS  ✓ Android
+   → Haz clic: "Generate"
+   → Descarga el ZIP
+
+───────────────────────────────────────────────────────────
+
+✅ PASO 3: Instalar los iconos
+
+   ANDROID:
+   Extrae: mipmap-mdpi, mipmap-hdpi, mipmap-xhdpi, etc.
+   Copia a: android/app/src/main/res/
+   
+   iOS:
+   Extrae: AppIcon-*.png
+   Copia a: ios/pdfsignpoc/Images.xcassets/AppIcon.appiconset/
+
+───────────────────────────────────────────────────────────
+
+✅ PASO 4: Rebuild la app
+
+   ANDROID:
+   cd android
+   ./gradlew clean
+   cd ..
+   npm run android
+   
+   iOS:
+   cd ios
+   rm -rf build
+   pod install
+   cd ..
+   npm run ios
+
+───────────────────────────────────────────────────────────
+
+🎯 ALTERNATIVA RÁPIDA: Usar el script
+
+   npm install --save-dev sharp
+   node scripts/generate-app-icons.js assets/app-icon-source.png
+
+═══════════════════════════════════════════════════════════
+
+📝 NOTAS:
+   - Si el icono no cambia, desinstala la app completamente
+   - El archivo SVG ya está listo en: assets/app-logo.svg
+   - Documentación completa: ACTUALIZAR_ICONO_APP.md
+
+═══════════════════════════════════════════════════════════

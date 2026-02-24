@@ -1,3 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PrescriptionBlockService } from './PrescriptionBlockService';
+
+const STORAGE_KEY = '@prescriptions_v1';
+
 export type PrescriptionStatus = 'pending' | 'signed' | 'expired';
 
 export interface Prescription {
@@ -9,7 +14,10 @@ export interface Prescription {
   medication: string;
   dosage: string;
   instructions: string;
-  date: string;
+  date: string; // ISO date string
+  createdAt: string; // ISO date-time string
+  signedAt?: string; // ISO date-time string (when signed)
+  blockId?: string; // Reference to the prescription block used
 }
 
 export interface NewPrescriptionInput {
@@ -25,55 +33,139 @@ export interface DashboardStats {
   signedToday: number;
 }
 
-const MOCK: Prescription[] = [
-  { id: '1', patientName: 'Sarah Johnson',  patientDocument: 'DNI 12345678', rxNumber: 'RX001', status: 'pending',  medication: 'Amoxicillin',  dosage: '500mg - 3x daily', instructions: 'Tomar con alimentos durante 7 días.',     date: '2026-02-18' },
-  { id: '2', patientName: 'Michael Chen',   patientDocument: 'DNI 87654321', rxNumber: 'RX002', status: 'signed',   medication: 'Lisinopril',   dosage: '10mg - 1x daily',  instructions: 'Tomar por la mañana en ayunas.',          date: '2026-02-17' },
-  { id: '3', patientName: 'Emily Davis',    patientDocument: 'DNI 11223344', rxNumber: 'RX003', status: 'signed',   medication: 'Metformin',    dosage: '850mg - 2x daily', instructions: 'Tomar con las comidas principales.',      date: '2026-02-16' },
-  { id: '4', patientName: 'James Wilson',   patientDocument: 'DNI 99887766', rxNumber: 'RX004', status: 'expired',  medication: 'Atorvastatin', dosage: '20mg - 1x daily',  instructions: 'Tomar antes de dormir. Evitar pomelo.',   date: '2026-02-15' },
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-let nextId = MOCK.length + 1;
+function generatePrescriptionId(): string {
+  return `presc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
-const today = new Date().toISOString().slice(0, 10);
+function getTodayDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function readAll(): Promise<Prescription[]> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  return raw ? (JSON.parse(raw) as Prescription[]) : [];
+}
+
+async function writeAll(prescriptions: Prescription[]): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(prescriptions));
+}
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 export const PrescriptionService = {
-  getAll(): Promise<Prescription[]> {
-    return Promise.resolve([...MOCK]);
-  },
-  search(query: string): Promise<Prescription[]> {
-    const q = query.toLowerCase();
-    return Promise.resolve(
-      MOCK.filter(p =>
-        p.patientName.toLowerCase().includes(q) ||
-        p.rxNumber.toLowerCase().includes(q) ||
-        p.medication.toLowerCase().includes(q),
-      ),
+  /**
+   * Get all prescriptions, sorted by creation date (newest first)
+   */
+  async getAll(): Promise<Prescription[]> {
+    const prescriptions = await readAll();
+    return prescriptions.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   },
-  getStats(): Promise<DashboardStats> {
-    return Promise.resolve({
-      pending:     MOCK.filter(p => p.status === 'pending').length,
-      signedToday: MOCK.filter(p => p.status === 'signed' && p.date === today).length,
-    });
+
+  /**
+   * Search prescriptions by patient name, rx number, or medication
+   */
+  async search(query: string): Promise<Prescription[]> {
+    const prescriptions = await readAll();
+    const q = query.toLowerCase();
+    return prescriptions.filter(p =>
+      p.patientName.toLowerCase().includes(q) ||
+      p.rxNumber.toLowerCase().includes(q) ||
+      p.medication.toLowerCase().includes(q),
+    );
   },
-  createPrescription(input: NewPrescriptionInput): Promise<Prescription> {
-    const id = String(nextId++);
-    const rxNumber = `RX${id.padStart(3, '0')}`;
+
+  /**
+   * Get dashboard statistics
+   */
+  async getStats(): Promise<DashboardStats> {
+    const prescriptions = await readAll();
+    const today = getTodayDate();
+    
+    return {
+      pending: prescriptions.filter(p => p.status === 'pending').length,
+      signedToday: prescriptions.filter(p => p.status === 'signed' && p.date === today).length,
+    };
+  },
+
+  /**
+   * Create a new prescription using the next available prescription from the active block
+   */
+  async createPrescription(input: NewPrescriptionInput): Promise<Prescription> {
+    // Get the active prescription block
+    const blocks = await PrescriptionBlockService.getAll();
+    const activeBlock = blocks.find(b => b.isActive && b.nextIndex < b.totalRecetas);
+    
+    if (!activeBlock) {
+      throw new Error('No hay talonario activo con recetas disponibles');
+    }
+
+    // Mark the next prescription as used and get the rx number
+    const usedReceta = await PrescriptionBlockService.markNextUsed(activeBlock.id);
+    
+    if (!usedReceta) {
+      throw new Error('No se pudo obtener la siguiente receta del talonario');
+    }
+
+    // Create the prescription
+    const now = new Date().toISOString();
     const prescription: Prescription = {
-      id,
+      id: generatePrescriptionId(),
       patientName: input.patientName,
       patientDocument: input.patientDocument,
-      rxNumber,
+      rxNumber: usedReceta.serial,
       status: 'pending',
       medication: input.medication,
       dosage: input.dosage,
       instructions: input.instructions,
-      date: today,
+      date: getTodayDate(),
+      createdAt: now,
+      blockId: activeBlock.id,
     };
-    MOCK.unshift(prescription);
-    return Promise.resolve({ ...prescription });
+
+    const prescriptions = await readAll();
+    prescriptions.unshift(prescription);
+    await writeAll(prescriptions);
+
+    return prescription;
   },
-  hasReceiptAvailable(): Promise<boolean> {
-    return Promise.resolve(false);
+
+  /**
+   * Update prescription status
+   */
+  async updateStatus(id: string, status: PrescriptionStatus): Promise<void> {
+    const prescriptions = await readAll();
+    const prescription = prescriptions.find(p => p.id === id);
+    
+    if (!prescription) {
+      throw new Error('Prescripción no encontrada');
+    }
+
+    prescription.status = status;
+    
+    if (status === 'signed') {
+      prescription.signedAt = new Date().toISOString();
+    }
+
+    await writeAll(prescriptions);
+  },
+
+  /**
+   * Delete a prescription
+   */
+  async delete(id: string): Promise<void> {
+    const prescriptions = await readAll();
+    await writeAll(prescriptions.filter(p => p.id !== id));
+  },
+
+  /**
+   * Check if there's an active prescription block with available prescriptions
+   */
+  async hasReceiptAvailable(): Promise<boolean> {
+    const blocks = await PrescriptionBlockService.getAll();
+    return blocks.some(b => b.isActive && b.nextIndex < b.totalRecetas);
   },
 };

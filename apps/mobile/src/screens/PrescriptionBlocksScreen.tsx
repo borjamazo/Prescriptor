@@ -58,6 +58,7 @@ interface BlockCardProps {
   onDelete: () => void;
   onMarkUsed: () => void;
   onSetNext: () => void;
+  onToggleActive: () => void;
 }
 
 const BlockCard = ({
@@ -67,6 +68,7 @@ const BlockCard = ({
   onDelete,
   onMarkUsed,
   onSetNext,
+  onToggleActive,
 }: BlockCardProps) => {
   const pending = block.totalRecetas - block.usedCount;
   const pct = block.totalRecetas > 0 ? block.usedCount / block.totalRecetas : 0;
@@ -98,13 +100,37 @@ const BlockCard = ({
           </Text>
           <Text style={cardSt.importDate}>Importado {importDate}</Text>
         </View>
-        <TouchableOpacity
-          onPress={onDelete}
-          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-        >
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
-        </TouchableOpacity>
+        <View style={cardSt.headerActions}>
+          {/* Active selector - only show if block has available prescriptions */}
+          {!isExhausted && (
+            <TouchableOpacity
+              onPress={onToggleActive}
+              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+              style={cardSt.activeToggle}
+            >
+              <Ionicons
+                name={block.isActive ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                size={24}
+                color={block.isActive ? '#10B981' : '#9CA3AF'}
+              />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={onDelete}
+            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Active badge */}
+      {block.isActive && (
+        <View style={cardSt.activeBadge}>
+          <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+          <Text style={cardSt.activeBadgeText}>Talonario activo</Text>
+        </View>
+      )}
 
       {/* ── Prescription range ── */}
       <View style={cardSt.serialRow}>
@@ -429,6 +455,7 @@ export const PrescriptionBlocksScreen = () => {
         nextIndex: 0,
         encryptedPwd: PrescriptionBlockService.encryptPwd(pdfPwd),
         history: [],
+        isActive: false, // New blocks are not active by default
       };
       
       console.log('Attempting to add block:', block);
@@ -475,6 +502,44 @@ export const PrescriptionBlocksScreen = () => {
     if (!used) return;
     await loadBlocks();
     Alert.alert('✓ Receta registrada', `Número de serie: ${used.serial}`, [{ text: 'OK' }]);
+  };
+
+  // ── Toggle active ───────────────────────────────────────────────────────────
+
+  const handleToggleActive = async (id: string) => {
+    try {
+      const block = blocks.find(b => b.id === id);
+      if (!block) return;
+
+      if (block.isActive) {
+        // Deactivating - just confirm
+        Alert.alert(
+          'Desactivar talonario',
+          '¿Desactivar este talonario? No se usará para nuevas recetas.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Desactivar',
+              onPress: async () => {
+                // Deactivate by setting another block or none
+                const allBlocks = await PrescriptionBlockService.getAll();
+                allBlocks.forEach(b => b.isActive = false);
+                await PrescriptionBlockService.update(allBlocks[0]); // Trigger save
+                await loadBlocks();
+              },
+            },
+          ],
+        );
+      } else {
+        // Activating
+        await PrescriptionBlockService.setActive(id);
+        await loadBlocks();
+        Alert.alert('✓ Talonario activado', 'Este talonario se usará para nuevas recetas');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error', message);
+    }
   };
 
   // ── Set next ────────────────────────────────────────────────────────────────
@@ -569,6 +634,7 @@ export const PrescriptionBlocksScreen = () => {
               onDelete={() => handleDelete(item.id, item.filename)}
               onMarkUsed={() => handleMarkUsed(item.id)}
               onSetNext={() => openSetNext(item)}
+              onToggleActive={() => handleToggleActive(item.id)}
             />
           )}
         />
@@ -822,6 +888,29 @@ const cardSt = StyleSheet.create({
   },
   headerInfo: {
     flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  activeToggle: {
+    padding: 2,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#ECFDF5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#D1FAE5',
+  },
+  activeBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#10B981',
   },
   filename: {
     fontSize: 15,

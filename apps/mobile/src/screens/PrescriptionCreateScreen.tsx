@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -38,9 +38,12 @@ export const PrescriptionCreateScreen = () => {
   const [hasReceipt, setHasReceipt]         = useState(false);
   const [loading, setLoading]               = useState(false);
 
-  useEffect(() => {
-    PrescriptionService.hasReceiptAvailable().then(setHasReceipt);
-  }, []);
+  // Check if there's an active prescription block when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      PrescriptionService.hasReceiptAvailable().then(setHasReceipt);
+    }, [])
+  );
 
   const isFormValid =
     patientName.trim().length > 0 &&
@@ -61,10 +64,21 @@ export const PrescriptionCreateScreen = () => {
         dosage: dosage.trim(),
         instructions: instructions.trim(),
       };
-      await PrescriptionService.createPrescription(input);
-      navigation.goBack();
-    } catch {
-      Alert.alert('Error', 'No se pudo crear la prescripción. Inténtalo de nuevo.');
+      const prescription = await PrescriptionService.createPrescription(input);
+      Alert.alert(
+        '✓ Prescripción creada',
+        `Número de receta: ${prescription.rxNumber}\nPaciente: ${prescription.patientName}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ],
+      );
+    } catch (error) {
+      console.error('Error creating prescription:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -100,16 +114,16 @@ export const PrescriptionCreateScreen = () => {
           <View style={styles.warningCard}>
             <View style={styles.warningTitleRow}>
               <Ionicons name="warning-outline" size={18} color="#D97706" />
-              <Text style={styles.warningTitle}>Sin Receta Disponible</Text>
+              <Text style={styles.warningTitle}>Sin Talonario Activo</Text>
             </View>
             <Text style={styles.warningBody}>
-              Por favor sube PDFs de recetas en la sección de configuración
+              Necesitas importar un talonario de recetas y activarlo para crear prescripciones
             </Text>
             <TouchableOpacity
               style={styles.warningButton}
-              onPress={() => (navigation as any).navigate('Settings')}
+              onPress={() => (navigation as any).navigate('PrescriptionBlocks')}
             >
-              <Text style={styles.warningButtonText}>Ir a Config. de Recetas</Text>
+              <Text style={styles.warningButtonText}>Ir a Talonarios</Text>
             </TouchableOpacity>
           </View>
         )}

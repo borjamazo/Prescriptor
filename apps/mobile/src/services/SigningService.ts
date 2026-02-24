@@ -1,7 +1,9 @@
 import DocumentPicker from 'react-native-document-picker';
 import { NativeModules } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { PdfSigner } = NativeModules;
+const STORAGE_KEY = '@signing_records_v1';
 
 const getPdfSignerMethod = (names: string[]) => {
   for (const name of names) {
@@ -28,26 +30,22 @@ export interface SigningRecord {
   outputPath: string;
 }
 
-const mockRecords: SigningRecord[] = [
-  {
-    id: '1',
-    fileName: 'prescription_johnson.pdf',
-    signedAt: 'Feb 18, 2026 · 14:32',
-    outputPath: '/cache/signed_prescription_johnson.pdf',
-  },
-  {
-    id: '2',
-    fileName: 'rx_chen_amoxicillin.pdf',
-    signedAt: 'Feb 17, 2026 · 09:15',
-    outputPath: '/cache/signed_rx_chen_amoxicillin.pdf',
-  },
-  {
-    id: '3',
-    fileName: 'prescription_davis.pdf',
-    signedAt: 'Feb 16, 2026 · 16:48',
-    outputPath: '/cache/signed_prescription_davis.pdf',
-  },
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function generateRecordId(): string {
+  return `sign_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function readRecords(): Promise<SigningRecord[]> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  return raw ? (JSON.parse(raw) as SigningRecord[]) : [];
+}
+
+async function writeRecords(records: SigningRecord[]): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 export const SigningService = {
   pickDocument: async (): Promise<PickedDocument | null> => {
@@ -84,6 +82,43 @@ export const SigningService = {
     await openPdf(path);
   },
 
-  getRecentSignings: (): Promise<SigningRecord[]> =>
-    Promise.resolve(mockRecords),
+  /**
+   * Save a signing record
+   */
+  async saveRecord(fileName: string, outputPath: string): Promise<void> {
+    const records = await readRecords();
+    const now = new Date();
+    const signedAt = now.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    
+    const record: SigningRecord = {
+      id: generateRecordId(),
+      fileName,
+      signedAt,
+      outputPath,
+    };
+    
+    records.unshift(record);
+    await writeRecords(records);
+  },
+
+  /**
+   * Get recent signing records
+   */
+  async getRecentSignings(): Promise<SigningRecord[]> {
+    return readRecords();
+  },
+
+  /**
+   * Delete a signing record
+   */
+  async deleteRecord(id: string): Promise<void> {
+    const records = await readRecords();
+    await writeRecords(records.filter(r => r.id !== id));
+  },
 };

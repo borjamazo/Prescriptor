@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { PrescriptionCard } from '../components/PrescriptionCard';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { SearchBar } from '../components/SearchBar';
@@ -30,10 +30,25 @@ export const HomeScreen = () => {
     return userProfile.email.split('@')[0];
   };
 
-  useEffect(() => {
-    PrescriptionService.getAll().then(setPrescriptions);
-    PrescriptionService.getStats().then(setStats);
+  // Cargar datos cuando la pantalla está en foco
+  const loadData = useCallback(async () => {
+    try {
+      const [prescriptionsData, statsData] = await Promise.all([
+        PrescriptionService.getAll(),
+        PrescriptionService.getStats(),
+      ]);
+      setPrescriptions(prescriptionsData);
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error loading home data:', error);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const filtered = search
     ? prescriptions.filter(

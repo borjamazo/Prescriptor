@@ -27,6 +27,7 @@ export interface PrescriptionBlock {
   nextIndex: number;        // 0-based index of the next prescription to use
   encryptedPwd: string;     // AES-256 encrypted PDF password; empty if none
   history: UsedReceta[];    // ordered list of used prescriptions
+  isActive: boolean;        // whether this block is the active one for new prescriptions
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -178,5 +179,39 @@ export const PrescriptionBlockService = {
     if (!block) return;
     block.nextIndex = Math.max(0, Math.min(zeroBasedIndex, block.totalRecetas - 1));
     await writeAll(list);
+  },
+
+  /**
+   * Set a block as active for new prescriptions.
+   * Only one block can be active at a time.
+   * Can only activate blocks with available prescriptions.
+   */
+  async setActive(id: string): Promise<void> {
+    const list = await readAll();
+    const block = list.find(b => b.id === id);
+    
+    if (!block) {
+      throw new Error('Talonario no encontrado');
+    }
+    
+    if (block.nextIndex >= block.totalRecetas) {
+      throw new Error('Este talonario no tiene recetas disponibles');
+    }
+    
+    // Deactivate all blocks
+    list.forEach(b => b.isActive = false);
+    
+    // Activate the selected block
+    block.isActive = true;
+    
+    await writeAll(list);
+  },
+
+  /**
+   * Get the currently active block
+   */
+  async getActive(): Promise<PrescriptionBlock | null> {
+    const list = await readAll();
+    return list.find(b => b.isActive) || null;
   },
 };

@@ -9,6 +9,7 @@ import android.media.MediaScannerConnection
 import android.os.Build
 import android.security.KeyChain
 import android.security.KeyChainAliasCallback
+import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -481,6 +482,8 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
   @ReactMethod
   fun extractPageText(fileUri: String, pageIndex: Int, password: String, promise: Promise) {
     Thread {
+      var doc: PDFDoc? = null
+      var extractor: TextExtractor? = null
       try {
         ensurePdfNetInitialized()
         val inputFile = resolveInputToFile(fileUri)
@@ -488,32 +491,59 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
           promise.reject("E_NOT_FOUND", "PDF file not found: ${inputFile.absolutePath}")
           return@Thread
         }
-        val doc = PDFDoc(inputFile.absolutePath)
+        
+        doc = PDFDoc(inputFile.absolutePath)
         openDocWithPassword(doc, password)
 
         val aprysePageNum = pageIndex + 1   // Apryse pages are 1-based
+        val totalPages = doc.pageCount
+        
+        if (aprysePageNum > totalPages || aprysePageNum < 1) {
+          doc.close()
+          promise.reject("E_INVALID_PAGE", "Page $aprysePageNum not found (total: $totalPages)")
+          return@Thread
+        }
+        
         val page = doc.getPage(aprysePageNum)
         if (page == null || !page.isValid) {
           doc.close()
-          promise.reject("E_INVALID_PAGE", "Page $aprysePageNum not found (total: ${doc.pageCount})")
+          promise.reject("E_INVALID_PAGE", "Page $aprysePageNum is invalid")
           return@Thread
         }
 
-        val extractor = TextExtractor()
+        extractor = TextExtractor()
         extractor.begin(page)
         val rawText = extractor.getAsText() ?: ""
-        extractor.destroy()
-        doc.close()
-
-        val rxNumber = parseRxNumber(rawText)
+        
+        Log.d("PdfSignerModule", "Extracted text from page $pageIndex (length: ${rawText.length})")
+        
+        val rxNumber = try {
+          parseRxNumber(rawText)
+        } catch (e: Exception) {
+          Log.e("PdfSignerModule", "Error parsing Rx number: ${e.message}", e)
+          ""
+        }
 
         val result: WritableMap = Arguments.createMap()
         result.putInt("pageIndex", pageIndex)
         result.putString("prescriptionNumber", rxNumber)
         result.putString("rawText", rawText)
+        
         promise.resolve(result)
       } catch (e: Exception) {
+        Log.e("PdfSignerModule", "Error extracting text from page $pageIndex: ${e.message}", e)
         promise.reject("E_EXTRACT_TEXT", e.message ?: "Text extraction failed", e)
+      } finally {
+        try {
+          extractor?.destroy()
+        } catch (e: Exception) {
+          Log.e("PdfSignerModule", "Error destroying extractor: ${e.message}")
+        }
+        try {
+          doc?.close()
+        } catch (e: Exception) {
+          Log.e("PdfSignerModule", "Error closing document: ${e.message}")
+        }
       }
     }.start()
   }
@@ -566,17 +596,25 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
    * Handles variations like "Nº de Receta:", "Nº Receta:", "Num. Receta:", etc.
    */
   private fun parseRxNumber(text: String): String {
-    val patterns = listOf(
-      Regex("""N[ºo°]\s*\.?\s*de\s*Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
-      Regex("""N[ºo°]\s*\.?\s*Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
-      Regex("""Num(?:ero)?\s*\.?\s*(?:de\s*)?Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
-    )
-    for (pattern in patterns) {
-      val match = pattern.find(text)
-      if (match != null) {
-        val value = match.groupValues[1].trim()
-        if (value.isNotEmpty()) return value
+    try {
+      val patterns = listOf(
+        Regex("""N[ºo°]\s*\.?\s*de\s*Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
+        Regex("""N[ºo°]\s*\.?\s*Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
+        Regex("""Num(?:ero)?\s*\.?\s*(?:de\s*)?Receta\s*:?\s*([A-Za-z0-9\-/]+)""", RegexOption.IGNORE_CASE),
+      )
+      for (pattern in patterns) {
+        val match = pattern.find(text)
+        if (match != null && match.groupValues.size > 1) {
+          val value = match.groupValues[1].trim()
+          if (value.isNotEmpty()) {
+            Log.d("PdfSignerModule", "Found Rx number: $value")
+            return value
+          }
+        }
       }
+      Log.d("PdfSignerModule", "No Rx number found in text (length: ${text.length})")
+    } catch (e: Exception) {
+      Log.e("PdfSignerModule", "Error parsing Rx number: ${e.message}", e)
     }
     return ""
   }

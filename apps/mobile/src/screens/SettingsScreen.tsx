@@ -99,22 +99,6 @@ export const SettingsScreen = () => {
           />
           <SettingsRow
             type="text"
-            icon="mail-outline"
-            iconBg="#ECFDF5"
-            iconColor="#059669"
-            label="Email"
-            subtitle={profile?.email}
-          />
-          <SettingsRow
-            type="text"
-            icon="call-outline"
-            iconBg="#EFF6FF"
-            iconColor="#3B82F6"
-            label="Teléfono"
-            subtitle={profile?.phone || 'No configurado'}
-          />
-          <SettingsRow
-            type="text"
             icon="location-outline"
             iconBg="#FEF3C7"
             iconColor="#D97706"

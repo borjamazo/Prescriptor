@@ -57,7 +57,6 @@ interface BlockCardProps {
   onDelete: () => void;
   onMarkUsed: () => void;
   onSetNext: () => void;
-  rxNumber?: string; // physical Nº de Receta of the next prescription
 }
 
 const BlockCard = ({
@@ -67,7 +66,6 @@ const BlockCard = ({
   onDelete,
   onMarkUsed,
   onSetNext,
-  rxNumber,
 }: BlockCardProps) => {
   const pending = block.totalRecetas - block.usedCount;
   const pct = block.totalRecetas > 0 ? block.usedCount / block.totalRecetas : 0;
@@ -144,9 +142,6 @@ const BlockCard = ({
           <Text style={[cardSt.nextSerial, isExhausted && cardSt.exhaustedText]}>
             {nextSerial}
           </Text>
-          {!isExhausted && rxNumber ? (
-            <Text style={cardSt.rxNumberText}>Nº Receta: {rxNumber}</Text>
-          ) : null}
         </View>
         {!isExhausted && (
           <TouchableOpacity style={cardSt.changeBtn} onPress={onSetNext} activeOpacity={0.8}>
@@ -228,8 +223,6 @@ export const PrescriptionBlocksScreen = () => {
   const [blocks, setBlocks] = useState<PrescriptionBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  // Physical Nº de Receta per block id (fetched lazily after load)
-  const [rxNumbers, setRxNumbers] = useState<Record<string, string>>({});
 
   // Import modal
   const [importVisible, setImportVisible] = useState(false);
@@ -240,7 +233,6 @@ export const PrescriptionBlocksScreen = () => {
   const [showPwd, setShowPwd] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [detectingPages, setDetectingPages] = useState(false);
-  const [detectingSerial, setDetectingSerial] = useState(false);
 
   // Set-next modal
   const [setNextState, setSetNextState] = useState<SetNextState | null>(null);
@@ -253,24 +245,13 @@ export const PrescriptionBlocksScreen = () => {
     try {
       const data = await PrescriptionBlockService.getAll();
       setBlocks(data);
-      // Fetch physical Rx number for each non-exhausted block (best-effort)
-      const numbers: Record<string, string> = {};
-      await Promise.all(
-        data
-          .filter(b => b.nextIndex < b.totalRecetas)
-          .map(async b => {
-            try {
-              const pwd = PrescriptionBlockService.decryptPwd(b.encryptedPwd);
-              const info = await PdfReaderService.extractPageText(b.fileUri, b.nextIndex, pwd);
-              if (info.prescriptionNumber) {
-                numbers[b.id] = info.prescriptionNumber;
-              }
-            } catch {
-              // silently ignore — PDF may not be accessible yet
-            }
-          }),
-      );
-      setRxNumbers(numbers);
+      
+      // DISABLED: Automatic Rx number detection to prevent crashes
+      // Users can manually enter the prescription number
+      // If needed in the future, this can be re-enabled with better error handling
+      
+    } catch (error) {
+      console.error('Error loading blocks:', error);
     } finally {
       setLoading(false);
     }
@@ -302,7 +283,16 @@ export const PrescriptionBlocksScreen = () => {
       setSelFile({ uri: fileUri, name: fileName });
 
       // Auto-detect page count (try without password first)
-      await detectPageCount(fileUri, '');
+      try {
+        const count = await PdfReaderService.getPageCount(fileUri, '');
+        if (count > 0) {
+          setTotalStr(String(count));
+          setDetectingPages(false);
+        }
+      } catch (error) {
+        // PDF might be password protected, user will need to enter password
+        console.log('Could not detect page count without password');
+      }
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) {
         Alert.alert('Error', 'No se pudo seleccionar el archivo');
@@ -312,39 +302,24 @@ export const PrescriptionBlocksScreen = () => {
 
   const detectPageCount = async (fileUri: string, password: string) => {
     setDetectingPages(true);
-    setDetectingSerial(true);
     try {
-      // Detectar número de páginas
+      // Solo detectar número de páginas
       const count = await PdfReaderService.getPageCount(fileUri, password);
       if (count > 0) {
         setTotalStr(String(count));
-      }
-
-      // Intentar detectar el número de receta de la primera página
-      let prescriptionNumber = '';
-      try {
-        const pageInfo = await PdfReaderService.extractPageText(fileUri, 0, password);
-        if (pageInfo.prescriptionNumber) {
-          setBlockSerial(pageInfo.prescriptionNumber);
-          prescriptionNumber = pageInfo.prescriptionNumber;
-        }
-      } catch (error) {
-        console.log('Could not extract prescription number:', error);
-      }
-
-      if (password && count > 0) {
         Alert.alert(
           '✓ Detectado',
-          `Se detectaron ${count} recetas en el PDF${prescriptionNumber ? `\nNúmero de receta: ${prescriptionNumber}` : ''}`
+          `Se detectaron ${count} recetas en el PDF.\n\nPor favor, introduce manualmente el número de receta del bloque.`
         );
+      } else {
+        throw new Error('No se pudo detectar el número de páginas');
       }
     } catch (error) {
-      if (password) {
-        Alert.alert('Error', 'No se pudo leer el PDF. Verifica la contraseña.');
-      }
+      console.error('Error detecting page count:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error', `No se pudo leer el PDF. ${password ? 'Verifica la contraseña.' : 'El PDF puede estar protegido con contraseña.'}\n\nError: ${errorMessage}`);
     } finally {
       setDetectingPages(false);
-      setDetectingSerial(false);
     }
   };
 
@@ -523,7 +498,6 @@ export const PrescriptionBlocksScreen = () => {
               onDelete={() => handleDelete(item.id, item.filename)}
               onMarkUsed={() => handleMarkUsed(item.id)}
               onSetNext={() => openSetNext(item)}
-              rxNumber={rxNumbers[item.id]}
             />
           )}
         />
@@ -589,16 +563,9 @@ export const PrescriptionBlocksScreen = () => {
               </TouchableOpacity>
 
               {/* ── Block serial ── */}
-              <View style={styles.fieldLabelRow}>
-                <Text style={styles.fieldLabel}>Número de receta *</Text>
-                {detectingSerial && (
-                  <ActivityIndicator size="small" color="#5551F5" style={styles.detectSpinner} />
-                )}
-              </View>
+              <Text style={styles.fieldLabel}>Número de receta *</Text>
               <Text style={styles.fieldHint}>
-                {detectingSerial
-                  ? 'Detectando número de receta del PDF…'
-                  : 'Número de receta del bloque (se autodetecta del PDF si es posible)'}
+                Número de receta del bloque (introduce manualmente)
               </Text>
               <TextInput
                 style={styles.textInput}
@@ -608,7 +575,6 @@ export const PrescriptionBlocksScreen = () => {
                 autoCapitalize="characters"
                 autoCorrect={false}
                 returnKeyType="next"
-                editable={!detectingSerial}
               />
 
               {/* ── Total prescriptions ── */}
@@ -636,7 +602,7 @@ export const PrescriptionBlocksScreen = () => {
               {/* ── PDF password ── */}
               <Text style={styles.fieldLabel}>Contraseña del PDF</Text>
               <Text style={styles.fieldHint}>
-                Si el PDF está protegido, introduce la contraseña para autodetectar el número de recetas. Se guardará cifrada en el dispositivo.
+                Si el PDF está protegido, introduce la contraseña para detectar el número de páginas. Se guardará cifrada en el dispositivo.
               </Text>
               <View style={styles.pwdRow}>
                 <TextInput
@@ -670,7 +636,7 @@ export const PrescriptionBlocksScreen = () => {
                 >
                   <Ionicons name="refresh-outline" size={18} color="#5551F5" />
                   <Text style={styles.retryDetectionText}>
-                    Detectar recetas con contraseña
+                    Detectar número de páginas con contraseña
                   </Text>
                 </TouchableOpacity>
               )}

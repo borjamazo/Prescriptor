@@ -1,10 +1,10 @@
-# Fix: Error al Importar Bloques de Recetas - Crypto Module
+# Fix: Error al Importar Talonarios de Recetas - Crypto Module
 
 ## Problema
 
-Al intentar importar un bloque de recetas en `PrescriptionBlocksScreen`, aparece el error:
+Al intentar importar un talonario de recetas en `PrescriptionBlocksScreen`, aparece el error:
 
-> "No se pudo importar el bloque de recetas: Native crypto module could not be used to get secure random number"
+> "No se pudo importar el talonario de recetas: Native crypto module could not be used to get secure random number"
 
 ## Causa Raíz
 
@@ -60,11 +60,11 @@ try {
   await loadBlocks();
   setImportVisible(false);
   resetImportForm();
-  Alert.alert('✓ Importado', 'Bloque de recetas importado correctamente');
+  Alert.alert('✓ Importado', 'talonario de recetas importado correctamente');
 } catch (error) {
   console.error('Error importing block:', error);
   const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-  Alert.alert('Error', `No se pudo importar el bloque de recetas: ${errorMessage}`);
+  Alert.alert('Error', `No se pudo importar el talonario de recetas: ${errorMessage}`);
 }
 ```
 
@@ -108,7 +108,7 @@ Para verificar que funciona:
    - Total de recetas: `25`
    - Contraseña del PDF: (opcional)
 6. **Click en "Importar"**
-7. Deberías ver el mensaje: **"✓ Importado - Bloque de recetas importado correctamente"**
+7. Deberías ver el mensaje: **"✓ Importado - talonario de recetas importado correctamente"**
 8. El bloque debería aparecer en la lista
 
 ## Qué Hace react-native-get-random-values

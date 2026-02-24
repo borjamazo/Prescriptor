@@ -12,7 +12,7 @@ const STORAGE_KEY = '@rx_blocks_v1';
 
 export interface UsedReceta {
   pageIndex: number;   // 0-based page index in the PDF
-  serial: string;      // full computed serial, e.g. "B2024-001-003"
+  serial: string;      // full computed serial, e.g. "29-8448969"
   usedAt: string;      // ISO date-time string
 }
 
@@ -21,7 +21,7 @@ export interface PrescriptionBlock {
   filename: string;
   fileUri: string;          // file:// URI of the local copy
   importedAt: string;       // ISO date-time
-  blockSerial: string;      // base serial of the block, e.g. "B2024-001"
+  blockSerial: string;      // FULL serial of the FIRST prescription, e.g. "29-8448968"
   totalRecetas: number;     // total pages / prescriptions in the PDF
   usedCount: number;        // = history.length
   nextIndex: number;        // 0-based index of the next prescription to use
@@ -33,6 +33,39 @@ export interface PrescriptionBlock {
 
 export function generateBlockId(): string {
   return `blk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Parse a prescription number to extract base and number.
+ * Examples:
+ *   "29-8448968" → { base: "29", number: 8448968 }
+ *   "B2024-001" → { base: "B2024", number: 1 }
+ *   "12345" → { base: "", number: 12345 }
+ */
+function parsePrescriptionNumber(serial: string): { base: string; number: number } {
+  // Try to match pattern: PREFIX-NUMBER or PREFIX-SUBNUMBER-NUMBER
+  const match = serial.match(/^(.+?)-(\d+)$/);
+  if (match) {
+    return {
+      base: match[1],
+      number: parseInt(match[2], 10),
+    };
+  }
+  
+  // If no dash, try to parse as pure number
+  const numMatch = serial.match(/^(\d+)$/);
+  if (numMatch) {
+    return {
+      base: '',
+      number: parseInt(numMatch[1], 10),
+    };
+  }
+  
+  // Fallback: treat whole thing as base with number 0
+  return {
+    base: serial,
+    number: 0,
+  };
 }
 
 async function readAll(): Promise<PrescriptionBlock[]> {
@@ -70,10 +103,23 @@ export const PrescriptionBlockService = {
 
   /**
    * Build the individual serial number for a given page index.
-   * e.g. ("B2024-001", 4) → "B2024-001-005"
+   * The blockSerial is the FULL number of the FIRST prescription.
+   * We parse it to extract base and starting number, then add the page offset.
+   * 
+   * Examples:
+   *   blockSerial="29-8448968", pageIndex=0 → "29-8448968"
+   *   blockSerial="29-8448968", pageIndex=1 → "29-8448969"
+   *   blockSerial="29-8448968", pageIndex=2 → "29-8448970"
    */
   computeSerial(blockSerial: string, pageIndex: number): string {
-    return `${blockSerial}-${String(pageIndex + 1).padStart(3, '0')}`;
+    const parsed = parsePrescriptionNumber(blockSerial);
+    const newNumber = parsed.number + pageIndex;
+    
+    if (parsed.base) {
+      return `${parsed.base}-${newNumber}`;
+    } else {
+      return String(newNumber);
+    }
   },
 
   // ── CRUD ────────────────────────────────────────────────────────────────────

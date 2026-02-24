@@ -471,6 +471,102 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
   }
 
   /**
+   * Simplified method to extract ONLY the prescription number from first page.
+   * More robust and less prone to crashes.
+   */
+  @ReactMethod
+  fun extractPrescriptionNumber(fileUri: String, password: String, promise: Promise) {
+    Thread {
+      var doc: PDFDoc? = null
+      var extractor: TextExtractor? = null
+      try {
+        Log.d("PdfSignerModule", "Starting prescription number extraction...")
+        ensurePdfNetInitialized()
+        
+        val inputFile = resolveInputToFile(fileUri)
+        if (!inputFile.exists()) {
+          Log.e("PdfSignerModule", "File not found: ${inputFile.absolutePath}")
+          promise.reject("E_NOT_FOUND", "PDF file not found")
+          return@Thread
+        }
+        
+        Log.d("PdfSignerModule", "Opening PDF document...")
+        doc = PDFDoc(inputFile.absolutePath)
+        
+        if (password.isNotEmpty()) {
+          Log.d("PdfSignerModule", "Applying password...")
+          val ok = doc.initStdSecurityHandler(password)
+          if (!ok) {
+            Log.e("PdfSignerModule", "Incorrect password")
+            doc.close()
+            promise.reject("E_PASSWORD", "Incorrect PDF password")
+            return@Thread
+          }
+        } else {
+          doc.initSecurityHandler()
+        }
+
+        val totalPages = doc.pageCount
+        Log.d("PdfSignerModule", "Total pages: $totalPages")
+        
+        if (totalPages < 1) {
+          doc.close()
+          promise.reject("E_NO_PAGES", "PDF has no pages")
+          return@Thread
+        }
+        
+        Log.d("PdfSignerModule", "Getting first page...")
+        val page = doc.getPage(1) // First page (1-based)
+        if (page == null || !page.isValid) {
+          doc.close()
+          promise.reject("E_INVALID_PAGE", "First page is invalid")
+          return@Thread
+        }
+
+        Log.d("PdfSignerModule", "Extracting text from first page...")
+        extractor = TextExtractor()
+        extractor.begin(page)
+        val rawText = extractor.getAsText() ?: ""
+        
+        Log.d("PdfSignerModule", "Text extracted (${rawText.length} chars)")
+        
+        // Parse prescription number
+        val rxNumber = try {
+          parseRxNumber(rawText)
+        } catch (e: Exception) {
+          Log.e("PdfSignerModule", "Error parsing Rx number: ${e.message}", e)
+          ""
+        }
+
+        Log.d("PdfSignerModule", "Prescription number: '$rxNumber'")
+
+        val result: WritableMap = Arguments.createMap()
+        result.putString("prescriptionNumber", rxNumber)
+        result.putBoolean("success", rxNumber.isNotEmpty())
+        
+        promise.resolve(result)
+      } catch (e: Exception) {
+        Log.e("PdfSignerModule", "Fatal error extracting prescription number: ${e.message}", e)
+        e.printStackTrace()
+        promise.reject("E_EXTRACT_FAILED", "Failed to extract prescription number: ${e.message}", e)
+      } finally {
+        try {
+          extractor?.destroy()
+          Log.d("PdfSignerModule", "Extractor destroyed")
+        } catch (e: Exception) {
+          Log.e("PdfSignerModule", "Error destroying extractor: ${e.message}")
+        }
+        try {
+          doc?.close()
+          Log.d("PdfSignerModule", "Document closed")
+        } catch (e: Exception) {
+          Log.e("PdfSignerModule", "Error closing document: ${e.message}")
+        }
+      }
+    }.start()
+  }
+
+  /**
    * Extracts text from a single PDF page (0-based pageIndex).
    * Parses "Nº de Receta:" to return the physical prescription number.
    *
@@ -646,5 +742,52 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
       android.util.Log.e("PdfSigner", "Signature verification error: ${e.message}", e)
       throw Exception("Signature verification failed: ${e.message}")
     }
+  }
+
+  /**
+   * Decrypt a password-protected PDF and save it to cache without password.
+   * Returns the path to the decrypted PDF.
+   * This is useful for OCR processing which doesn't support encrypted PDFs.
+   */
+  @ReactMethod
+  fun decryptPdfToCache(fileUri: String, password: String, promise: Promise) {
+    Thread {
+      var doc: PDFDoc? = null
+      try {
+        ensurePdfNetInitialized()
+        val inputFile = resolveInputToFile(fileUri)
+        if (!inputFile.exists()) {
+          promise.reject("E_NOT_FOUND", "PDF file not found: ${inputFile.absolutePath}")
+          return@Thread
+        }
+
+        // Open the encrypted PDF
+        doc = PDFDoc(inputFile.absolutePath)
+        if (password.isNotEmpty()) {
+          val ok = doc.initStdSecurityHandler(password)
+          if (!ok) {
+            promise.reject("E_WRONG_PASSWORD", "Incorrect password")
+            return@Thread
+          }
+        }
+
+        // Create output file in cache directory
+        val cacheDir = reactApplicationContext.cacheDir
+        val outputFile = File(cacheDir, "decrypted_${System.currentTimeMillis()}.pdf")
+
+        // Remove security (decrypt)
+        doc.removeSecurity()
+
+        // Save the decrypted PDF
+        doc.save(outputFile.absolutePath, SDFDoc.SaveMode.LINEARIZED, null)
+        doc.close()
+
+        // Return the file URI
+        promise.resolve("file://${outputFile.absolutePath}")
+      } catch (e: Exception) {
+        doc?.close()
+        promise.reject("E_DECRYPT", e.message ?: "Failed to decrypt PDF", e)
+      }
+    }.start()
   }
 }

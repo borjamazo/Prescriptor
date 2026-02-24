@@ -26,6 +26,26 @@ export const PdfReaderService = {
   },
 
   /**
+   * Decrypt a password-protected PDF and save it to cache without password.
+   * Returns the path to the decrypted PDF for OCR processing.
+   */
+  async decryptPdfToCache(fileUri: string, password: string): Promise<string> {
+    return getMethod('decryptPdfToCache')(fileUri, password);
+  },
+
+  /**
+   * Simplified method to extract ONLY the prescription number from first page.
+   * More robust than extractPageText.
+   * Returns: { prescriptionNumber: string, success: boolean }
+   */
+  async extractPrescriptionNumber(
+    fileUri: string,
+    password: string = '',
+  ): Promise<{ prescriptionNumber: string; success: boolean }> {
+    return getMethod('extractPrescriptionNumber')(fileUri, password);
+  },
+
+  /**
    * Extracts text from a single page (0-based pageIndex).
    * Parses the physical "Nº de Receta" number if present on the page.
    */

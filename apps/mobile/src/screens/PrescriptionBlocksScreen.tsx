@@ -23,6 +23,7 @@ import {
   PrescriptionBlockService,
 } from '../services/PrescriptionBlockService';
 import { PdfReaderService } from '../services/PdfReaderService';
+import { OcrService } from '../services/OcrService';
 
 // ─── Stat pill ────────────────────────────────────────────────────────────────
 
@@ -71,8 +72,12 @@ const BlockCard = ({
   const pct = block.totalRecetas > 0 ? block.usedCount / block.totalRecetas : 0;
   const isExhausted = block.nextIndex >= block.totalRecetas;
   const nextSerial = isExhausted
-    ? 'Bloque agotado'
+    ? 'Talonario agotado'
     : PrescriptionBlockService.computeSerial(block.blockSerial, block.nextIndex);
+
+  // Calculate first and last prescription numbers for display
+  const firstSerial = PrescriptionBlockService.computeSerial(block.blockSerial, 0);
+  const lastSerial = PrescriptionBlockService.computeSerial(block.blockSerial, block.totalRecetas - 1);
 
   const importDate = new Date(block.importedAt).toLocaleDateString('es-ES', {
     day: '2-digit',
@@ -101,11 +106,15 @@ const BlockCard = ({
         </TouchableOpacity>
       </View>
 
-      {/* ── Serial number ── */}
+      {/* ── Prescription range ── */}
       <View style={cardSt.serialRow}>
         <Ionicons name="barcode-outline" size={16} color="#6B7280" />
-        <Text style={cardSt.serialLabel}>Serie del bloque: </Text>
-        <Text style={cardSt.serialValue}>{block.blockSerial}</Text>
+        <View style={cardSt.serialContent}>
+          <Text style={cardSt.serialLabel}>Recetas del talonario</Text>
+          <Text style={cardSt.serialValue}>
+            {firstSerial} → {lastSerial}
+          </Text>
+        </View>
       </View>
 
       {/* ── Progress bar ── */}
@@ -163,7 +172,7 @@ const BlockCard = ({
           color={isExhausted ? '#9CA3AF' : '#fff'}
         />
         <Text style={[cardSt.markBtnText, isExhausted && cardSt.markBtnTextDisabled]}>
-          {isExhausted ? 'Bloque agotado' : 'Registrar siguiente como usada'}
+          {isExhausted ? 'Taloranio agotado' : 'Registrar siguiente como usada'}
         </Text>
       </TouchableOpacity>
 
@@ -302,22 +311,87 @@ export const PrescriptionBlocksScreen = () => {
 
   const detectPageCount = async (fileUri: string, password: string) => {
     setDetectingPages(true);
+    let pageCountDetected = false;
+    let rxNumberDetected = false;
+    let decryptedPdfUri: string | null = null;
+    
     try {
-      // Solo detectar número de páginas
-      const count = await PdfReaderService.getPageCount(fileUri, password);
-      if (count > 0) {
-        setTotalStr(String(count));
-        Alert.alert(
-          '✓ Detectado',
-          `Se detectaron ${count} recetas en el PDF.\n\nPor favor, introduce manualmente el número de receta del bloque.`
-        );
+      // Step 1: Try to detect page count using PDFTron (supports password)
+      try {
+        console.log('Detecting page count...');
+        const count = await PdfReaderService.getPageCount(fileUri, password);
+        if (count > 0) {
+          setTotalStr(String(count));
+          pageCountDetected = true;
+          console.log(`Page count detected: ${count}`);
+        }
+      } catch (pageCountError) {
+        console.error('Error detecting page count:', pageCountError);
+        // Continue to try OCR even if page count fails
+      }
+
+      // Step 2: Try to detect prescription number using OCR
+      // If PDF is password-protected, decrypt it first to a temporary file
+      try {
+        console.log('Using OCR to extract prescription number...');
+        
+        let pdfUriForOcr = fileUri;
+        
+        // If password is provided, decrypt the PDF first
+        if (password && password.trim() !== '') {
+          console.log('Decrypting PDF to cache for OCR processing...');
+          decryptedPdfUri = await PdfReaderService.decryptPdfToCache(fileUri, password);
+          pdfUriForOcr = decryptedPdfUri;
+          console.log('PDF decrypted successfully');
+        }
+        
+        const result = await OcrService.extractPrescriptionNumberFromPdf(pdfUriForOcr);
+        if (result.success && result.prescriptionNumber) {
+          setBlockSerial(result.prescriptionNumber);
+          rxNumberDetected = true;
+          console.log(`Prescription number detected: ${result.prescriptionNumber}`);
+        } else if (result.error) {
+          console.log('OCR error:', result.error);
+        }
+      } catch (ocrError) {
+        console.error('Error with OCR:', ocrError);
+        // Continue even if OCR fails
+      } finally {
+        // Clean up decrypted file if it was created
+        if (decryptedPdfUri) {
+          try {
+            const RNFS = require('react-native-fs');
+            const filePath = decryptedPdfUri.replace('file://', '');
+            await RNFS.unlink(filePath);
+            console.log('Decrypted temporary file deleted');
+          } catch (cleanupError) {
+            console.log('Could not delete temporary file:', cleanupError);
+            // Not critical, Android will clean cache eventually
+          }
+        }
+      }
+
+      // Show results
+      if (pageCountDetected || rxNumberDetected) {
+        let message = '';
+        if (pageCountDetected && rxNumberDetected) {
+          message = `✓ Número de páginas: ${totalStr}\n✓ Número de receta: ${blockSerial}`;
+        } else if (pageCountDetected) {
+          message = `✓ Número de páginas: ${totalStr}\n\n⚠️ No se pudo detectar el número de receta. Introdúcelo manualmente.`;
+        } else if (rxNumberDetected) {
+          message = `✓ Número de receta: ${blockSerial}\n\n⚠️ No se pudo detectar el número de páginas. Introdúcelo manualmente.`;
+        }
+        Alert.alert('Detección completada', message);
       } else {
-        throw new Error('No se pudo detectar el número de páginas');
+        throw new Error('No se pudo detectar ningún dato del PDF');
       }
     } catch (error) {
-      console.error('Error detecting page count:', error);
+      console.error('Error in detectPageCount:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      Alert.alert('Error', `No se pudo leer el PDF. ${password ? 'Verifica la contraseña.' : 'El PDF puede estar protegido con contraseña.'}\n\nError: ${errorMessage}`);
+      Alert.alert(
+        'Error de detección',
+        `No se pudieron detectar los datos del PDF.\n\n${password ? 'Verifica que la contraseña sea correcta.' : 'El PDF puede estar protegido con contraseña.'}\n\nIntroduce los datos manualmente.\n\nError: ${errorMessage}`
+      );
     } finally {
       setDetectingPages(false);
     }
@@ -326,9 +400,6 @@ export const PrescriptionBlocksScreen = () => {
   const handleRetryDetection = () => {
     if (!selFile) {
       return Alert.alert('Error', 'Primero selecciona un archivo PDF');
-    }
-    if (!pdfPwd.trim()) {
-      return Alert.alert('Contraseña requerida', 'Introduce la contraseña del PDF para detectar automáticamente el número de recetas');
     }
     detectPageCount(selFile.uri, pdfPwd);
   };
@@ -367,11 +438,11 @@ export const PrescriptionBlocksScreen = () => {
       await loadBlocks();
       setImportVisible(false);
       resetImportForm();
-      Alert.alert('✓ Importado', 'Bloque de recetas importado correctamente');
+      Alert.alert('✓ Importado', 'Talonario de recetas importado correctamente');
     } catch (error) {
       console.error('Error importing block:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      Alert.alert('Error', `No se pudo importar el bloque de recetas: ${errorMessage}`);
+      Alert.alert('Error', `No se pudo importar el talonario de recetas: ${errorMessage}`);
     } finally {
       setImportLoading(false);
     }
@@ -461,7 +532,7 @@ export const PrescriptionBlocksScreen = () => {
         >
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bloques de Recetas</Text>
+        <Text style={styles.headerTitle}>Talonario de Recetas</Text>
         <TouchableOpacity
           style={styles.headerActionButton}
           onPress={() => setImportVisible(true)}
@@ -479,7 +550,7 @@ export const PrescriptionBlocksScreen = () => {
           <View style={styles.emptyIconWrap}>
             <Ionicons name="document-text-outline" size={48} color="#5551F5" />
           </View>
-          <Text style={styles.emptyTitle}>Sin bloques de recetas</Text>
+          <Text style={styles.emptyTitle}>Sin talonario de recetas</Text>
           <Text style={styles.emptySubtitle}>
             Importa tu primer PDF de recetas pulsando "Importar"
           </Text>
@@ -522,7 +593,7 @@ export const PrescriptionBlocksScreen = () => {
             >
               {/* Modal header */}
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Importar Bloque</Text>
+                <Text style={styles.modalTitle}>Importar Talonario</Text>
                 <TouchableOpacity
                   onPress={() => { setImportVisible(false); resetImportForm(); }}
                   hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
@@ -563,15 +634,15 @@ export const PrescriptionBlocksScreen = () => {
               </TouchableOpacity>
 
               {/* ── Block serial ── */}
-              <Text style={styles.fieldLabel}>Número de receta *</Text>
+              <Text style={styles.fieldLabel}>Número de la primera receta *</Text>
               <Text style={styles.fieldHint}>
-                Número de receta del bloque (introduce manualmente)
+                Número de la primera receta del talonario. Las siguientes serán consecutivas (ej: 29-8448968, 29-8448969, 29-8448970...)
               </Text>
               <TextInput
                 style={styles.textInput}
                 value={blockSerial}
                 onChangeText={setBlockSerial}
-                placeholder="Ej: 29-8448969"
+                placeholder="Ej: 29-8448968"
                 autoCapitalize="characters"
                 autoCorrect={false}
                 returnKeyType="next"
@@ -602,7 +673,7 @@ export const PrescriptionBlocksScreen = () => {
               {/* ── PDF password ── */}
               <Text style={styles.fieldLabel}>Contraseña del PDF</Text>
               <Text style={styles.fieldHint}>
-                Si el PDF está protegido, introduce la contraseña para detectar el número de páginas. Se guardará cifrada en el dispositivo.
+                Si el PDF está protegido, introduce la contraseña para detectar el número de páginas y el número de receta. Se guardará cifrada en el dispositivo.
               </Text>
               <View style={styles.pwdRow}>
                 <TextInput
@@ -627,7 +698,7 @@ export const PrescriptionBlocksScreen = () => {
               </View>
 
               {/* ── Retry detection button ── */}
-              {selFile && !totalStr && pdfPwd && (
+              {selFile && pdfPwd && (
                 <TouchableOpacity
                   style={styles.retryDetectionBtn}
                   onPress={handleRetryDetection}
@@ -636,7 +707,7 @@ export const PrescriptionBlocksScreen = () => {
                 >
                   <Ionicons name="refresh-outline" size={18} color="#5551F5" />
                   <Text style={styles.retryDetectionText}>
-                    Detectar número de páginas con contraseña
+                    {detectingPages ? 'Detectando...' : 'Detectar datos del PDF'}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -764,18 +835,22 @@ const cardSt = StyleSheet.create({
   },
   serialRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 4,
-    gap: 6,
+    gap: 8,
+  },
+  serialContent: {
+    flex: 1,
   },
   serialLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B7280',
+    marginBottom: 2,
   },
   serialValue: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#111827',
     letterSpacing: 0.5,

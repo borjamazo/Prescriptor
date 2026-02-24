@@ -11,6 +11,7 @@ import {
   Prescription,
   PrescriptionService,
 } from '../services/PrescriptionService';
+import { PrescriptionPdfService } from '../services/PrescriptionPdfService';
 import { useAuth } from '../contexts/AuthContext';
 
 const formatDate = (d: Date) =>
@@ -22,6 +23,7 @@ export const HomeScreen = () => {
   const [search, setSearch] = useState('');
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ pending: 0, signedToday: 0 });
+  const [signingId, setSigningId] = useState<string | null>(null);
 
   // Obtener nombre del usuario
   const getUserName = () => {
@@ -52,21 +54,47 @@ export const HomeScreen = () => {
 
   // Handle sign prescription
   const handleSign = useCallback((prescription: Prescription) => {
+    if (!prescription.blockId) {
+      Alert.alert('Error', 'No se puede firmar esta receta: falta información del talonario');
+      return;
+    }
+
     Alert.alert(
       'Firmar receta',
-      `¿Firmar la receta ${prescription.rxNumber} para ${prescription.patientName}?`,
+      `¿Firmar la receta ${prescription.rxNumber} para ${prescription.patientName}?\n\nSe creará un PDF con los datos del paciente y se firmará digitalmente.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Firmar',
           onPress: async () => {
+            setSigningId(prescription.id);
             try {
+              // Create and sign prescription PDF
+              const signedPdfUri = await PrescriptionPdfService.createAndSignPrescription({
+                prescription,
+                blockId: prescription.blockId!,
+              });
+
+              // Update status to signed
               await PrescriptionService.updateStatus(prescription.id, 'signed');
               await loadData();
-              Alert.alert('✓ Receta firmada', 'La receta ha sido firmada correctamente');
+
+              // Ask user what to do with the signed PDF
+              Alert.alert(
+                '✓ Receta firmada',
+                'La receta ha sido firmada correctamente',
+                [
+                  { text: 'Ver PDF', onPress: () => PrescriptionPdfService.openPrescription(signedPdfUri) },
+                  { text: 'Compartir', onPress: () => PrescriptionPdfService.sharePrescription(signedPdfUri) },
+                  { text: 'Cerrar', style: 'cancel' },
+                ],
+              );
             } catch (error) {
               console.error('Error signing prescription:', error);
-              Alert.alert('Error', 'No se pudo firmar la receta');
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              Alert.alert('Error', `No se pudo firmar la receta: ${errorMessage}`);
+            } finally {
+              setSigningId(null);
             }
           },
         },
@@ -76,20 +104,10 @@ export const HomeScreen = () => {
 
   // Handle share prescription
   const handleShare = useCallback((prescription: Prescription) => {
-    // TODO: Implement PDF generation and sharing
     Alert.alert(
       'Compartir receta',
-      `Compartir receta ${prescription.rxNumber} para ${prescription.patientName}`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Compartir',
-          onPress: () => {
-            // TODO: Generate PDF and share
-            Alert.alert('En desarrollo', 'La funcionalidad de compartir estará disponible pronto');
-          },
-        },
-      ],
+      `La funcionalidad de compartir recetas firmadas estará disponible próximamente.\n\nReceta: ${prescription.rxNumber}`,
+      [{ text: 'OK' }],
     );
   }, []);
 
@@ -141,6 +159,7 @@ export const HomeScreen = () => {
             prescription={p}
             onSign={handleSign}
             onShare={handleShare}
+            isSigning={signingId === p.id}
           />
         ))}
       </ScrollView>

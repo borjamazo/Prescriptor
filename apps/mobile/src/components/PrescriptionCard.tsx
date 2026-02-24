@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { StatusBadge } from './StatusBadge';
 import { colors } from '../design-system/tokens';
@@ -9,9 +9,10 @@ interface Props {
   prescription: Prescription;
   onSign?: (prescription: Prescription) => void;
   onShare?: (prescription: Prescription) => void;
+  isSigning?: boolean;
 }
 
-export const PrescriptionCard = ({ prescription, onSign, onShare }: Props) => {
+export const PrescriptionCard = ({ prescription, onSign, onShare, isSigning = false }: Props) => {
   const { patientName, patientDocument, rxNumber, status, medication, dosage, date } = prescription;
   const dotColor = colors.status[status].dot;
   const isSigned = status === 'signed';
@@ -46,12 +47,17 @@ export const PrescriptionCard = ({ prescription, onSign, onShare }: Props) => {
         {/* Sign button - only visible if pending */}
         {canSign && onSign && (
           <TouchableOpacity
-            style={[styles.actionButton, styles.signButton]}
-            onPress={() => onSign(prescription)}
-            activeOpacity={0.7}
+            style={[styles.actionButton, styles.signButton, isSigning && styles.signButtonDisabled]}
+            onPress={isSigning ? undefined : () => onSign(prescription)}
+            activeOpacity={isSigning ? 1 : 0.7}
+            disabled={isSigning}
           >
-            <Ionicons name="create-outline" size={18} color="#5551F5" />
-            <Text style={styles.signButtonText}>Firmar</Text>
+            {isSigning ? (
+              <ActivityIndicator size="small" color="#5551F5" />
+            ) : (
+              <Ionicons name="create-outline" size={18} color="#5551F5" />
+            )}
+            <Text style={styles.signButtonText}>{isSigning ? 'Firmando...' : 'Firmar'}</Text>
           </TouchableOpacity>
         )}
 
@@ -183,6 +189,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#5551F5',
+  },
+  signButtonDisabled: {
+    opacity: 0.6,
   },
   shareButton: {
     borderColor: '#10B981',

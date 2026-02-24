@@ -790,4 +790,167 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
       }
     }.start()
   }
+
+  /**
+   * Creates a prescription PDF from a specific page of the prescription block.
+   * Extracts the page, adds patient data, medication, and dosage as text overlay.
+   * Returns the path to the created PDF (ready to be signed).
+   * 
+   * @param blockFileUri: URI of the prescription block PDF
+   * @param pageIndex: 0-based page index to extract
+   * @param password: PDF password (if encrypted)
+   * @param patientName: Patient's full name
+   * @param patientDocument: Patient's document (DNI, etc.)
+   * @param medication: Medication name
+   * @param dosage: Dosage instructions
+   * @param instructions: Additional instructions/posology
+   */
+  @ReactMethod
+  fun createPrescriptionPdf(
+    blockFileUri: String,
+    pageIndex: Int,
+    password: String,
+    patientName: String,
+    patientDocument: String,
+    medication: String,
+    dosage: String,
+    instructions: String,
+    promise: Promise
+  ) {
+    Thread {
+      var sourceDoc: PDFDoc? = null
+      var newDoc: PDFDoc? = null
+      try {
+        ensurePdfNetInitialized()
+        
+        // Open source PDF (prescription block)
+        val inputFile = resolveInputToFile(blockFileUri)
+        if (!inputFile.exists()) {
+          promise.reject("E_NOT_FOUND", "Prescription block PDF not found")
+          return@Thread
+        }
+
+        sourceDoc = PDFDoc(inputFile.absolutePath)
+        openDocWithPassword(sourceDoc, password)
+
+        val aprysePageNum = pageIndex + 1
+        val totalPages = sourceDoc.pageCount
+        
+        if (aprysePageNum > totalPages || aprysePageNum < 1) {
+          sourceDoc.close()
+          promise.reject("E_INVALID_PAGE", "Page $aprysePageNum not found (total: $totalPages)")
+          return@Thread
+        }
+
+        // Create new document
+        newDoc = PDFDoc()
+        
+        // Import the specific page from source
+        // Use the simpler API: insertPages(index, sourceDoc, startPage, endPage, flag)
+        newDoc.insertPages(0, sourceDoc, aprysePageNum, aprysePageNum, 0, null)
+
+        // Get the imported page
+        val page = newDoc.getPage(1)
+        if (page == null || !page.isValid) {
+          newDoc.close()
+          sourceDoc.close()
+          promise.reject("E_INVALID_PAGE", "Failed to import page")
+          return@Thread
+        }
+
+        // Add text overlay with prescription data
+        addPrescriptionDataToPage(newDoc, page, patientName, patientDocument, medication, dosage, instructions)
+
+        // Save to cache
+        val cacheDir = reactApplicationContext.cacheDir
+        val outputFile = File(cacheDir, "prescription_${System.currentTimeMillis()}.pdf")
+        newDoc.save(outputFile.absolutePath, SDFDoc.SaveMode.LINEARIZED, null)
+        
+        newDoc.close()
+        sourceDoc.close()
+
+        // Return the file URI
+        promise.resolve("file://${outputFile.absolutePath}")
+      } catch (e: Exception) {
+        newDoc?.close()
+        sourceDoc?.close()
+        Log.e("PdfSignerModule", "Error creating prescription PDF: ${e.message}", e)
+        promise.reject("E_CREATE_PRESCRIPTION", e.message ?: "Failed to create prescription PDF", e)
+      }
+    }.start()
+  }
+
+  /**
+   * Adds prescription data as text overlay on the page.
+   * Positions text in a designated area (typically bottom or side of the page).
+   */
+  private fun addPrescriptionDataToPage(
+    doc: PDFDoc,
+    page: com.pdftron.pdf.Page,
+    patientName: String,
+    patientDocument: String,
+    medication: String,
+    dosage: String,
+    instructions: String
+  ) {
+    val writer = com.pdftron.pdf.ElementWriter()
+    val builder = com.pdftron.pdf.ElementBuilder()
+    
+    writer.begin(page, com.pdftron.pdf.ElementWriter.e_overlay, false, true)
+
+    // Get page dimensions
+    val pageRect = page.cropBox
+    val pageWidth = pageRect.width
+    val pageHeight = pageRect.height
+
+    // Position for text overlay (bottom section of the page)
+    val startX = 50.0
+    var currentY = 100.0 // Start from bottom
+    val lineHeight = 15.0
+    val fontSize = 10.0
+
+    // Create font
+    val font = com.pdftron.pdf.Font.create(doc, com.pdftron.pdf.Font.e_helvetica)
+
+    // Helper function to add text line
+    fun addTextLine(text: String, isBold: Boolean = false) {
+      val element = builder.createTextBegin(font, fontSize)
+      writer.writeElement(element)
+
+      val textElement = builder.createTextRun(text)
+      textElement.setTextMatrix(1.0, 0.0, 0.0, 1.0, startX, currentY)
+      writer.writeElement(textElement)
+
+      val endElement = builder.createTextEnd()
+      writer.writeElement(endElement)
+
+      currentY += lineHeight
+    }
+
+    // Add prescription data
+    addTextLine("DATOS DE LA PRESCRIPCIÓN", true)
+    currentY += 5.0
+    
+    addTextLine("Paciente: $patientName")
+    if (patientDocument.isNotEmpty()) {
+      addTextLine("Documento: $patientDocument")
+    }
+    currentY += 5.0
+    
+    addTextLine("Medicamento: $medication")
+    addTextLine("Dosis: $dosage")
+    
+    if (instructions.isNotEmpty()) {
+      currentY += 5.0
+      addTextLine("Posología:")
+      // Split instructions into multiple lines if too long
+      val maxCharsPerLine = 80
+      val instructionLines = instructions.chunked(maxCharsPerLine)
+      instructionLines.forEach { line ->
+        addTextLine("  $line")
+      }
+    }
+
+    writer.end()
+  }
 }

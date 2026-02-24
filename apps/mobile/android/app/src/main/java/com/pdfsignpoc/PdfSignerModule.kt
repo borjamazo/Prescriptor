@@ -10,6 +10,7 @@ import android.os.Build
 import android.security.KeyChain
 import android.security.KeyChainAliasCallback
 import android.util.Log
+import androidx.core.content.FileProvider
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -793,12 +794,14 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
 
   /**
    * Creates a prescription PDF from a specific page of the prescription block.
-   * Extracts the page, adds patient data, medication, and dosage as text overlay.
+   * Extracts the page, adds patient data at configured positions.
+   * Each page has 2 prescriptions (top and bottom).
    * Returns the path to the created PDF (ready to be signed).
    * 
    * @param blockFileUri: URI of the prescription block PDF
    * @param pageIndex: 0-based page index to extract
    * @param password: PDF password (if encrypted)
+   * @param prescriptionIndex: Index of prescription in block (0-based) - used to determine top/bottom position
    * @param patientName: Patient's full name
    * @param patientDocument: Patient's document (DNI, etc.)
    * @param medication: Medication name
@@ -810,6 +813,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     blockFileUri: String,
     pageIndex: Int,
     password: String,
+    prescriptionIndex: Int,
     patientName: String,
     patientDocument: String,
     medication: String,
@@ -859,18 +863,36 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
         }
 
         // Add text overlay with prescription data
-        addPrescriptionDataToPage(newDoc, page, patientName, patientDocument, medication, dosage, instructions)
+        // Determine if this is top or bottom prescription (even index = top, odd = bottom)
+        val isTopPrescription = prescriptionIndex % 2 == 0
+        addPrescriptionDataToPage(newDoc, page, isTopPrescription, patientName, patientDocument, medication, dosage, instructions)
 
         // Save to cache
         val cacheDir = reactApplicationContext.cacheDir
         val outputFile = File(cacheDir, "prescription_${System.currentTimeMillis()}.pdf")
-        newDoc.save(outputFile.absolutePath, SDFDoc.SaveMode.LINEARIZED, null)
+        
+        try {
+          newDoc.save(outputFile.absolutePath, SDFDoc.SaveMode.LINEARIZED, null)
+        } catch (saveException: Exception) {
+          // Check if it's just a license warning
+          if (saveException.message?.contains("Bad License Key") == true) {
+            Log.w("PdfSignerModule", "PDFNet is running in demo mode - this is expected for trial versions")
+            // The file was still saved, continue
+          } else {
+            throw saveException
+          }
+        }
         
         newDoc.close()
         sourceDoc.close()
 
-        // Return the file URI
-        promise.resolve("file://${outputFile.absolutePath}")
+        // Get a shareable content URI for the file
+        val shareableUri = getShareableUri(outputFile)
+        
+        Log.d("PdfSignerModule", "Prescription PDF created successfully: ${shareableUri}")
+        
+        // Return the content URI (not file URI)
+        promise.resolve(shareableUri.toString())
       } catch (e: Exception) {
         newDoc?.close()
         sourceDoc?.close()
@@ -881,12 +903,123 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
   }
 
   /**
-   * Adds prescription data as text overlay on the page.
-   * Positions text in a designated area (typically bottom or side of the page).
+   * Gets a shareable content:// URI for a file using FileProvider.
+   * This is required for Android 7+ to share files with other apps.
+   */
+  private fun getShareableUri(file: File): Uri {
+    return try {
+      FileProvider.getUriForFile(
+        reactApplicationContext,
+        "${reactApplicationContext.packageName}.fileprovider",
+        file
+      )
+    } catch (e: Exception) {
+      Log.e("PdfSignerModule", "Error getting shareable URI: ${e.message}", e)
+      // Fallback to file URI (won't work on Android 7+ but better than crashing)
+      Uri.fromFile(file)
+    }
+  }
+
+  /**
+   * Adds prescription data to the page using specific X,Y coordinates.
+   * First tries to fill form fields if they exist, otherwise overlays text at configured positions.
+   * 
+   * @param isTopPrescription: true for top prescription, false for bottom prescription
    */
   private fun addPrescriptionDataToPage(
     doc: PDFDoc,
     page: com.pdftron.pdf.Page,
+    isTopPrescription: Boolean,
+    patientName: String,
+    patientDocument: String,
+    medication: String,
+    dosage: String,
+    instructions: String
+  ) {
+    // Try to fill form fields first
+    val fieldsFilled = tryFillFormFields(doc, patientName, patientDocument, medication, dosage, instructions)
+    
+    if (fieldsFilled) {
+      Log.d("PdfSignerModule", "Prescription data filled in form fields")
+      return
+    }
+    
+    // If no form fields, overlay text at configured positions
+    Log.d("PdfSignerModule", "No form fields found, using text overlay for ${if (isTopPrescription) "TOP" else "BOTTOM"} prescription")
+    overlayPrescriptionText(doc, page, isTopPrescription, patientName, patientDocument, medication, dosage, instructions)
+  }
+
+  /**
+   * Attempts to fill form fields with prescription data.
+   * Returns true if fields were found and filled, false otherwise.
+   */
+  private fun tryFillFormFields(
+    doc: PDFDoc,
+    patientName: String,
+    patientDocument: String,
+    medication: String,
+    dosage: String,
+    instructions: String
+  ): Boolean {
+    try {
+      var fieldsFound = false
+      
+      // Common field name patterns for prescription forms
+      val fieldMappings = mapOf(
+        // Patient fields
+        listOf("paciente", "patient", "nombre", "name", "apellidos") to patientName,
+        listOf("dni", "documento", "document", "id", "nif", "nie") to patientDocument,
+        
+        // Medication fields
+        listOf("medicamento", "medication", "medicine", "farmaco", "principio_activo") to medication,
+        listOf("dosis", "dosage", "dose", "cantidad") to dosage,
+        listOf("posologia", "instrucciones", "instructions", "indicaciones") to instructions
+      )
+      
+      // Iterate through all fields in the document
+      val fieldIterator = doc.fieldIterator
+      while (fieldIterator.hasNext()) {
+        val field = fieldIterator.next()
+        if (field == null || !field.isValid) continue
+        
+        val fieldName = field.name?.lowercase() ?: continue
+        Log.d("PdfSignerModule", "Found field: $fieldName")
+        
+        // Try to match field name with our data
+        for ((patterns, value) in fieldMappings) {
+          if (value.isEmpty()) continue
+          
+          if (patterns.any { pattern -> fieldName.contains(pattern) }) {
+            try {
+              field.setValue(value)
+              field.refreshAppearance()
+              fieldsFound = true
+              Log.d("PdfSignerModule", "Filled field '$fieldName' with value")
+            } catch (e: Exception) {
+              Log.w("PdfSignerModule", "Could not fill field '$fieldName': ${e.message}")
+            }
+            break
+          }
+        }
+      }
+      
+      return fieldsFound
+    } catch (e: Exception) {
+      Log.e("PdfSignerModule", "Error filling form fields: ${e.message}", e)
+      return false
+    }
+  }
+
+  /**
+   * Overlays prescription text on the page at specific X,Y coordinates.
+   * Uses hardcoded positions that match the prescription template.
+   * 
+   * TODO: Make these coordinates configurable from React Native side
+   */
+  private fun overlayPrescriptionText(
+    doc: PDFDoc,
+    page: com.pdftron.pdf.Page,
+    isTopPrescription: Boolean,
     patientName: String,
     patientDocument: String,
     medication: String,
@@ -898,59 +1031,126 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     
     writer.begin(page, com.pdftron.pdf.ElementWriter.e_overlay, false, true)
 
-    // Get page dimensions
+    // Get page dimensions for reference
     val pageRect = page.cropBox
     val pageWidth = pageRect.width
     val pageHeight = pageRect.height
+    
+    Log.d("PdfSignerModule", "Page dimensions: ${pageWidth}x${pageHeight}")
+    Log.d("PdfSignerModule", "Filling ${if (isTopPrescription) "TOP" else "BOTTOM"} prescription")
 
-    // Position for text overlay (bottom section of the page)
-    val startX = 50.0
-    var currentY = 100.0 // Start from bottom
-    val lineHeight = 15.0
-    val fontSize = 10.0
-
-    // Create font
+    // Font configuration
+    val fontSize = 9.0
     val font = com.pdftron.pdf.Font.create(doc, com.pdftron.pdf.Font.e_helvetica)
 
-    // Helper function to add text line
-    fun addTextLine(text: String, isBold: Boolean = false) {
+    // Helper function to add text at specific position
+    fun addTextAt(text: String, x: Double, y: Double) {
       val element = builder.createTextBegin(font, fontSize)
       writer.writeElement(element)
 
       val textElement = builder.createTextRun(text)
-      textElement.setTextMatrix(1.0, 0.0, 0.0, 1.0, startX, currentY)
+      textElement.setTextMatrix(1.0, 0.0, 0.0, 1.0, x, y)
       writer.writeElement(textElement)
 
       val endElement = builder.createTextEnd()
       writer.writeElement(endElement)
-
-      currentY += lineHeight
     }
 
-    // Add prescription data
-    addTextLine("DATOS DE LA PRESCRIPCIÓN", true)
-    currentY += 5.0
+    // ═══════════════════════════════════════════════════════════════════════
+    // COORDENADAS ESPECÍFICAS - Ajusta estos valores según tu plantilla
+    // ═══════════════════════════════════════════════════════════════════════
     
-    addTextLine("Paciente: $patientName")
+    // Coordenadas para RECETA SUPERIOR (mitad superior de la página)
+    val topPatientNameX = 150.0
+    val topPatientNameY = 700.0
+    val topPatientDocX = 150.0
+    val topPatientDocY = 680.0
+    val topMedicationX = 150.0
+    val topMedicationY = 640.0
+    val topDosageX = 150.0
+    val topDosageY = 620.0
+    val topInstructionsX = 150.0
+    val topInstructionsY = 580.0
+    
+    // Coordenadas para RECETA INFERIOR (mitad inferior de la página)
+    val bottomPatientNameX = 150.0
+    val bottomPatientNameY = 350.0
+    val bottomPatientDocX = 150.0
+    val bottomPatientDocY = 330.0
+    val bottomMedicationX = 150.0
+    val bottomMedicationY = 290.0
+    val bottomDosageX = 150.0
+    val bottomDosageY = 270.0
+    val bottomInstructionsX = 150.0
+    val bottomInstructionsY = 230.0
+    
+    // Seleccionar coordenadas según posición
+    val patNameX: Double
+    val patNameY: Double
+    val patDocX: Double
+    val patDocY: Double
+    val medX: Double
+    val medY: Double
+    val dosX: Double
+    val dosY: Double
+    val instX: Double
+    val instY: Double
+    
+    if (isTopPrescription) {
+      patNameX = topPatientNameX
+      patNameY = topPatientNameY
+      patDocX = topPatientDocX
+      patDocY = topPatientDocY
+      medX = topMedicationX
+      medY = topMedicationY
+      dosX = topDosageX
+      dosY = topDosageY
+      instX = topInstructionsX
+      instY = topInstructionsY
+    } else {
+      patNameX = bottomPatientNameX
+      patNameY = bottomPatientNameY
+      patDocX = bottomPatientDocX
+      patDocY = bottomPatientDocY
+      medX = bottomMedicationX
+      medY = bottomMedicationY
+      dosX = bottomDosageX
+      dosY = bottomDosageY
+      instX = bottomInstructionsX
+      instY = bottomInstructionsY
+    }
+    
+    // Añadir datos en las posiciones configuradas
+    addTextAt(patientName, patNameX, patNameY)
+    Log.d("PdfSignerModule", "Patient name at ($patNameX, $patNameY)")
+    
     if (patientDocument.isNotEmpty()) {
-      addTextLine("Documento: $patientDocument")
+      addTextAt(patientDocument, patDocX, patDocY)
+      Log.d("PdfSignerModule", "Patient document at ($patDocX, $patDocY)")
     }
-    currentY += 5.0
     
-    addTextLine("Medicamento: $medication")
-    addTextLine("Dosis: $dosage")
+    addTextAt(medication, medX, medY)
+    Log.d("PdfSignerModule", "Medication at ($medX, $medY)")
+    
+    addTextAt(dosage, dosX, dosY)
+    Log.d("PdfSignerModule", "Dosage at ($dosX, $dosY)")
     
     if (instructions.isNotEmpty()) {
-      currentY += 5.0
-      addTextLine("Posología:")
-      // Split instructions into multiple lines if too long
-      val maxCharsPerLine = 80
+      // Split long text into multiple lines
+      val maxCharsPerLine = 50
+      val lineSpacing = 15.0
       val instructionLines = instructions.chunked(maxCharsPerLine)
-      instructionLines.forEach { line ->
-        addTextLine("  $line")
+      var currentY = instY
+      
+      instructionLines.take(3).forEach { line ->  // Max 3 lines
+        addTextAt(line, instX, currentY)
+        currentY -= lineSpacing
       }
+      Log.d("PdfSignerModule", "Instructions at ($instX, $instY)")
     }
 
     writer.end()
+    
+    Log.d("PdfSignerModule", "Text overlay completed for ${if (isTopPrescription) "TOP" else "BOTTOM"} prescription")
   }
 }

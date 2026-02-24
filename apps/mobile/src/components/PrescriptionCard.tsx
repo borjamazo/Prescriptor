@@ -4,19 +4,34 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { StatusBadge } from './StatusBadge';
 import { colors } from '../design-system/tokens';
 import type { Prescription } from '../services/PrescriptionService';
+import { isDebugMode } from '../config/debugConfig';
 
 interface Props {
   prescription: Prescription;
   onSign?: (prescription: Prescription) => void;
   onShare?: (prescription: Prescription) => void;
   isSigning?: boolean;
+  // DEBUG PROPS - Remove when debugging is complete
+  onDebugRegenerate?: (prescription: Prescription) => void;
+  onDebugShare?: (prescription: Prescription) => void;
+  isRegenerating?: boolean;
 }
 
-export const PrescriptionCard = ({ prescription, onSign, onShare, isSigning = false }: Props) => {
+export const PrescriptionCard = ({ 
+  prescription, 
+  onSign, 
+  onShare, 
+  isSigning = false,
+  // DEBUG PROPS
+  onDebugRegenerate,
+  onDebugShare,
+  isRegenerating = false,
+}: Props) => {
   const { patientName, patientDocument, rxNumber, status, medication, dosage, date } = prescription;
   const dotColor = colors.status[status].dot;
   const isSigned = status === 'signed';
   const canSign = status === 'pending';
+  const debugMode = isDebugMode();
 
   return (
     <View style={styles.card}>
@@ -89,6 +104,50 @@ export const PrescriptionCard = ({ prescription, onSign, onShare, isSigning = fa
           </TouchableOpacity>
         )}
       </View>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* DEBUG SECTION - Remove this entire section when debugging is complete */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {debugMode && (
+        <View style={styles.debugSection}>
+          <Text style={styles.debugLabel}>🔧 DEBUG MODE</Text>
+          <View style={styles.debugActions}>
+            {/* Regenerate PDF button */}
+            {onDebugRegenerate && (
+              <TouchableOpacity
+                style={[styles.debugButton, styles.regenerateButton, isRegenerating && styles.debugButtonDisabled]}
+                onPress={isRegenerating ? undefined : () => onDebugRegenerate(prescription)}
+                activeOpacity={isRegenerating ? 1 : 0.7}
+                disabled={isRegenerating}
+              >
+                {isRegenerating ? (
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                ) : (
+                  <Ionicons name="refresh-outline" size={16} color="#F59E0B" />
+                )}
+                <Text style={styles.regenerateButtonText}>
+                  {isRegenerating ? 'Generando...' : 'Regenerar PDF'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Debug share button */}
+            {onDebugShare && (
+              <TouchableOpacity
+                style={[styles.debugButton, styles.debugShareButton]}
+                onPress={() => onDebugShare(prescription)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share-outline" size={16} color="#8B5CF6" />
+                <Text style={styles.debugShareButtonText}>Compartir</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* END DEBUG SECTION */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
     </View>
   );
 };
@@ -209,4 +268,64 @@ const styles = StyleSheet.create({
   shareButtonTextDisabled: {
     color: '#9CA3AF',
   },
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // DEBUG STYLES - Remove when debugging is complete
+  // ═══════════════════════════════════════════════════════════════════
+  debugSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 2,
+    borderTopColor: '#FEF3C7',
+    backgroundColor: '#FFFBEB',
+    padding: 12,
+    borderRadius: 8,
+  },
+  debugLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  debugActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  debugButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+  },
+  debugButtonDisabled: {
+    opacity: 0.6,
+  },
+  regenerateButton: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FEF3C7',
+  },
+  regenerateButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#F59E0B',
+  },
+  debugShareButton: {
+    borderColor: '#8B5CF6',
+    backgroundColor: '#F3E8FF',
+  },
+  debugShareButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+  // ═══════════════════════════════════════════════════════════════════
+  // END DEBUG STYLES
+  // ═══════════════════════════════════════════════════════════════════
 });

@@ -13,6 +13,11 @@ import {
 } from '../services/PrescriptionService';
 import { PrescriptionPdfService } from '../services/PrescriptionPdfService';
 import { useAuth } from '../contexts/AuthContext';
+// ═══════════════════════════════════════════════════════════════════
+// DEBUG IMPORTS - Remove when debugging is complete
+import { PrescriptionDebugService } from '../services/PrescriptionDebugService';
+import { isDebugMode } from '../config/debugConfig';
+// ═══════════════════════════════════════════════════════════════════
 
 const formatDate = (d: Date) =>
   d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -24,6 +29,12 @@ export const HomeScreen = () => {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ pending: 0, signedToday: 0 });
   const [signingId, setSigningId] = useState<string | null>(null);
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // DEBUG STATE - Remove when debugging is complete
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [lastGeneratedPdfUri, setLastGeneratedPdfUri] = useState<string | null>(null);
+  // ═══════════════════════════════════════════════════════════════════
 
   // Obtener nombre del usuario
   const getUserName = () => {
@@ -111,6 +122,74 @@ export const HomeScreen = () => {
     );
   }, []);
 
+  // ═══════════════════════════════════════════════════════════════════
+  // DEBUG HANDLERS - Remove when debugging is complete
+  // ═══════════════════════════════════════════════════════════════════
+  
+  // Handle regenerate PDF (debug only)
+  const handleDebugRegenerate = useCallback(async (prescription: Prescription) => {
+    if (!prescription.blockId) {
+      Alert.alert('Error', 'No se puede regenerar: falta información del talonario');
+      return;
+    }
+
+    setRegeneratingId(prescription.id);
+    try {
+      const result = await PrescriptionDebugService.regeneratePdf(prescription, prescription.blockId);
+      setLastGeneratedPdfUri(result.pdfUri);
+      
+      const debugInfo = await PrescriptionDebugService.getDebugInfo(prescription, prescription.blockId);
+      
+      Alert.alert(
+        '✓ PDF Regenerado',
+        `Receta: ${prescription.rxNumber}\n` +
+        `Posición: ${result.position.toUpperCase()}\n` +
+        `Índice: ${result.prescriptionIndex}\n` +
+        `Página: ${debugInfo.pageIndex}\n\n` +
+        `El PDF se ha generado sin firmar para que puedas verificar el posicionamiento.`,
+        [
+          { text: 'Ver PDF', onPress: () => PrescriptionDebugService.openPdf(result.pdfUri) },
+          { text: 'Compartir', onPress: () => PrescriptionDebugService.sharePdf(result.pdfUri) },
+          { text: 'Cerrar', style: 'cancel' },
+        ],
+      );
+    } catch (error) {
+      console.error('[DEBUG] Error regenerating PDF:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error', `No se pudo regenerar el PDF: ${errorMessage}`);
+    } finally {
+      setRegeneratingId(null);
+    }
+  }, []);
+
+  // Handle debug share (share last generated PDF)
+  const handleDebugShare = useCallback(async (prescription: Prescription) => {
+    if (!prescription.blockId) {
+      Alert.alert('Error', 'No se puede compartir: falta información del talonario');
+      return;
+    }
+
+    try {
+      // If we have a last generated PDF, share it
+      if (lastGeneratedPdfUri) {
+        await PrescriptionDebugService.sharePdf(lastGeneratedPdfUri);
+      } else {
+        // Otherwise, regenerate and share
+        const result = await PrescriptionDebugService.regeneratePdf(prescription, prescription.blockId);
+        setLastGeneratedPdfUri(result.pdfUri);
+        await PrescriptionDebugService.sharePdf(result.pdfUri);
+      }
+    } catch (error) {
+      console.error('[DEBUG] Error sharing PDF:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error', `No se pudo compartir el PDF: ${errorMessage}`);
+    }
+  }, [lastGeneratedPdfUri]);
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // END DEBUG HANDLERS
+  // ═══════════════════════════════════════════════════════════════════
+
   const filtered = search
     ? prescriptions.filter(
         p =>
@@ -160,6 +239,10 @@ export const HomeScreen = () => {
             onSign={handleSign}
             onShare={handleShare}
             isSigning={signingId === p.id}
+            // DEBUG PROPS - Remove when debugging is complete
+            onDebugRegenerate={isDebugMode() ? handleDebugRegenerate : undefined}
+            onDebugShare={isDebugMode() ? handleDebugShare : undefined}
+            isRegenerating={regeneratingId === p.id}
           />
         ))}
       </ScrollView>

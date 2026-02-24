@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Cache directory for temporary prescription PDFs -->
+    <cache-path name="prescription_cache" path="." />
+    
+    <!-- Files directory for app-specific files -->
+    <files-path name="prescription_files" path="." />
+    
+    <!-- External cache directory -->
+    <external-cache-path name="external_cache" path="." />
+</paths>

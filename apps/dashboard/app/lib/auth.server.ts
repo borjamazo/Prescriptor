@@ -32,6 +32,34 @@ export async function requireSuperAdmin(
   return { profile: profile as Profile, headers };
 }
 
+export async function requireAuth(
+  request: Request
+): Promise<{ user: { id: string; email: string }; profile: Profile | null; headers: Headers }> {
+  const { supabase, headers } = createSupabaseServerClient(request);
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw redirect("/login", { headers });
+  }
+
+  // Try to get profile (optional)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  return { 
+    user: { id: user.id, email: user.email || '' }, 
+    profile: profile as Profile | null, 
+    headers 
+  };
+}
+
 export async function requireGuest(request: Request): Promise<Headers> {
   const { supabase, headers } = createSupabaseServerClient(request);
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { PrescriptionCard } from '../components/PrescriptionCard';
@@ -50,6 +50,49 @@ export const HomeScreen = () => {
     }, [loadData])
   );
 
+  // Handle sign prescription
+  const handleSign = useCallback((prescription: Prescription) => {
+    Alert.alert(
+      'Firmar receta',
+      `¿Firmar la receta ${prescription.rxNumber} para ${prescription.patientName}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Firmar',
+          onPress: async () => {
+            try {
+              await PrescriptionService.updateStatus(prescription.id, 'signed');
+              await loadData();
+              Alert.alert('✓ Receta firmada', 'La receta ha sido firmada correctamente');
+            } catch (error) {
+              console.error('Error signing prescription:', error);
+              Alert.alert('Error', 'No se pudo firmar la receta');
+            }
+          },
+        },
+      ],
+    );
+  }, [loadData]);
+
+  // Handle share prescription
+  const handleShare = useCallback((prescription: Prescription) => {
+    // TODO: Implement PDF generation and sharing
+    Alert.alert(
+      'Compartir receta',
+      `Compartir receta ${prescription.rxNumber} para ${prescription.patientName}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Compartir',
+          onPress: () => {
+            // TODO: Generate PDF and share
+            Alert.alert('En desarrollo', 'La funcionalidad de compartir estará disponible pronto');
+          },
+        },
+      ],
+    );
+  }, []);
+
   const filtered = search
     ? prescriptions.filter(
         p =>
@@ -93,7 +136,12 @@ export const HomeScreen = () => {
         {/* ── Prescription list ── */}
         <Text style={styles.sectionTitle}>Recent Prescriptions</Text>
         {filtered.map(p => (
-          <PrescriptionCard key={p.id} prescription={p} />
+          <PrescriptionCard
+            key={p.id}
+            prescription={p}
+            onSign={handleSign}
+            onShare={handleShare}
+          />
         ))}
       </ScrollView>
     </SafeAreaView>

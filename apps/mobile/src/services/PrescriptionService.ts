@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PrescriptionBlockService } from './PrescriptionBlockService';
+import { SupabaseSyncService } from './SupabaseSyncService';
 
 const STORAGE_KEY = '@prescriptions_v1';
 
@@ -18,6 +19,7 @@ export interface Prescription {
   createdAt: string; // ISO date-time string
   signedAt?: string; // ISO date-time string (when signed)
   blockId?: string; // Reference to the prescription block used
+  supabaseIssuedId?: string; // Supabase issued_prescriptions.id
 }
 
 export interface NewPrescriptionInput {
@@ -110,6 +112,12 @@ export const PrescriptionService = {
       throw new Error('No se pudo obtener la siguiente receta del talonario');
     }
 
+    // Sync to Supabase (non-blocking)
+    const supabaseIssuedId = await SupabaseSyncService.syncIssuedPrescription(
+      usedReceta.serial,
+      activeBlock.id,
+    );
+
     // Create the prescription
     const now = new Date().toISOString();
     const prescription: Prescription = {
@@ -124,6 +132,7 @@ export const PrescriptionService = {
       date: getTodayDate(),
       createdAt: now,
       blockId: activeBlock.id,
+      supabaseIssuedId: supabaseIssuedId || undefined,
     };
 
     const prescriptions = await readAll();
@@ -148,6 +157,12 @@ export const PrescriptionService = {
     
     if (status === 'signed') {
       prescription.signedAt = new Date().toISOString();
+      
+      // Sync to Supabase (non-blocking)
+      await SupabaseSyncService.syncSignedPrescription(
+        prescription.rxNumber,
+        prescription.supabaseIssuedId,
+      );
     }
 
     await writeAll(prescriptions);

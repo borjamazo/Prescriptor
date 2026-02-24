@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SupabaseSyncService } from './SupabaseSyncService';
 
 const STORAGE_KEY = '@prescriptions_v1';
 
@@ -143,6 +144,12 @@ export const StatsService = {
         signed: monthPrescriptions.filter(p => p.status === 'signed').length,
         pending: monthPrescriptions.filter(p => p.status === 'pending').length,
       });
+    }
+    
+    // Get Supabase stats for additional context
+    const supabaseStats = await SupabaseSyncService.getUserStats();
+    if (supabaseStats) {
+      console.log('Supabase stats:', supabaseStats);
     }
     
     // Medication distribution (top medications)

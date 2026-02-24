@@ -1,6 +1,7 @@
 import 'react-native-get-random-values';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
+import { SupabaseSyncService } from './SupabaseSyncService';
 
 // ─── AES key for local password encryption ────────────────────────────────────
 // Protects the PDF password at rest in AsyncStorage. All data is device-local.
@@ -131,6 +132,12 @@ export const PrescriptionBlockService = {
     const list = await readAll();
     list.unshift(block);
     await writeAll(list);
+    
+    // Sync to Supabase (non-blocking)
+    await SupabaseSyncService.syncPrescriptionBlock(
+      block.blockSerial,
+      block.totalRecetas,
+    );
   },
 
   async update(updated: PrescriptionBlock): Promise<void> {

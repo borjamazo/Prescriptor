@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { HomeScreen } from '../screens/HomeScreen';
 import { StatsScreen } from '../screens/StatsScreen';
-import { SignScreen } from '../screens/SignScreen';
+import { ActiveBlocksScreen } from '../screens/ActiveBlocksScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import { PrescriptionCreateScreen } from '../screens/PrescriptionCreateScreen';
@@ -67,12 +67,12 @@ const MainTabs = () => (
       }}
     />
     <Tab.Screen
-      name="Sign"
-      component={SignScreen}
+      name="Blocks"
+      component={ActiveBlocksScreen}
       options={{
-        title: 'Sign',
+        title: 'Talonarios',
         tabBarIcon: ({ focused, color, size }) => (
-          <Ionicons name={focused ? 'create' : 'create-outline'} size={size} color={color} />
+          <Ionicons name={focused ? 'documents' : 'documents-outline'} size={size} color={color} />
         ),
       }}
     />

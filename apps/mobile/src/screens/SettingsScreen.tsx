@@ -128,6 +128,7 @@ export const SettingsScreen = () => {
         </View>
 
         {/* Preferences */}
+        {/* Temporalmente oculto
         <SectionLabel title="PREFERENCIAS" />
         <View style={styles.card}>
           <SettingsRow
@@ -162,6 +163,7 @@ export const SettingsScreen = () => {
             showSeparator={false}
           />
         </View>
+        */}
 
         {/* Support */}
         <SectionLabel title="SOPORTE" />

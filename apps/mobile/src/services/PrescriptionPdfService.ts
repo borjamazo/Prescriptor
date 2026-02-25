@@ -1,6 +1,7 @@
 import { NativeModules } from 'react-native';
 import { PrescriptionBlockService } from './PrescriptionBlockService';
 import { Prescription } from './PrescriptionService';
+import { SignatureService } from './SignatureService';
 import { getPrescriptionLayout } from '../config/prescriptionLayout';
 
 const { PdfSigner } = NativeModules;
@@ -88,6 +89,10 @@ export const PrescriptionPdfService = {
       console.log('Creating prescription PDF...');
       console.log(`Page: ${pageIndex}, Prescription index: ${prescriptionIndex}, Position: ${prescriptionIndex % 2 === 0 ? 'TOP' : 'BOTTOM'}`);
       
+      // Get signature if available
+      const signaturePath = await SignatureService.getSignatureFilePath();
+      console.log('Signature path:', signaturePath || 'No signature');
+      
       const prescriptionPdfUri = await PdfSigner.createPrescriptionPdf(
         block.fileUri,
         pageIndex,
@@ -99,6 +104,7 @@ export const PrescriptionPdfService = {
         prescription.medication,
         prescription.dosage,
         prescription.instructions,
+        signaturePath,  // Add signature image path
       );
 
       console.log('Prescription PDF created:', prescriptionPdfUri);
@@ -155,6 +161,10 @@ export const PrescriptionPdfService = {
       console.log('Creating prescription PDF without signature...');
       console.log(`Page: ${pageIndex}, Prescription index: ${prescriptionIndex}, Position: ${prescriptionIndex % 2 === 0 ? 'TOP' : 'BOTTOM'}`);
       
+      // Get signature if available
+      const signaturePath = await SignatureService.getSignatureFilePath();
+      console.log('Signature path:', signaturePath || 'No signature');
+      
       const prescriptionPdfUri = await PdfSigner.createPrescriptionPdf(
         block.fileUri,
         pageIndex,
@@ -166,6 +176,7 @@ export const PrescriptionPdfService = {
         prescription.medication,
         prescription.dosage,
         prescription.instructions,
+        signaturePath,  // Add signature image path
       );
 
       console.log('Prescription PDF created (unsigned):', prescriptionPdfUri);

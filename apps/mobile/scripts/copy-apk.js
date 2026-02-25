@@ -42,17 +42,30 @@ function main() {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   const version = packageJson.version;
 
-  // 1. Copy APK
+  // 1. Copy APK to root and releases folder
   const sourceApkPath = path.join(__dirname, '..', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
   const destApkPath = path.join(__dirname, '..', `PrescriptorApp-v${version}.apk`);
+  const releasesDir = path.join(__dirname, '..', 'releases');
+  const releasesApkPath = path.join(releasesDir, `PrescriptorApp-v${version}.apk`);
+
+  // Create releases directory if it doesn't exist
+  if (!fs.existsSync(releasesDir)) {
+    fs.mkdirSync(releasesDir, { recursive: true });
+    log('📁 Created releases directory', colors.green);
+  }
 
   if (fs.existsSync(sourceApkPath)) {
+    // Copy to root (for quick access)
     fs.copyFileSync(sourceApkPath, destApkPath);
+    
+    // Copy to releases folder (for archiving)
+    fs.copyFileSync(sourceApkPath, releasesApkPath);
     
     const stats = fs.statSync(destApkPath);
     const fileSize = formatBytes(stats.size);
     
-    log(`✅ APK copied: PrescriptorApp-v${version}.apk (${fileSize})`, colors.green);
+    log(`✅ APK copied to root: PrescriptorApp-v${version}.apk (${fileSize})`, colors.green);
+    log(`✅ APK archived: releases/PrescriptorApp-v${version}.apk`, colors.green);
   } else {
     log('⚠️  APK not found at expected location', colors.yellow);
   }
@@ -84,8 +97,9 @@ function main() {
   log(`🔧 Debug Mode: Disabled in APK`, colors.blue);
   log(`\n💡 Next steps:`, colors.yellow);
   log(`   1. Test the APK on a real device`, colors.reset);
-  log(`   2. Share: apps/mobile/PrescriptorApp-v${version}.apk`, colors.reset);
-  log(`   3. Install: adb install apps/mobile/PrescriptorApp-v${version}.apk`, colors.reset);
+  log(`   2. Root: apps/mobile/PrescriptorApp-v${version}.apk`, colors.reset);
+  log(`   3. Archive: apps/mobile/releases/PrescriptorApp-v${version}.apk`, colors.reset);
+  log(`   4. Install: adb install apps/mobile/PrescriptorApp-v${version}.apk`, colors.reset);
   log('\n' + '='.repeat(60) + '\n', colors.cyan);
 }
 

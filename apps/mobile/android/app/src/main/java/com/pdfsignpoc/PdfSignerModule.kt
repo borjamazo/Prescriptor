@@ -825,6 +825,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
    * @param medication: Medication name
    * @param dosage: Treatment duration (e.g., 7 days, 2 weeks)
    * @param instructions: Additional instructions/posology
+   * @param signatureImagePath: Optional path to signature image file
    */
   @ReactMethod
   fun createPrescriptionPdf(
@@ -838,6 +839,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     medication: String,
     dosage: String,
     instructions: String,
+    signatureImagePath: String?,
     promise: Promise
   ) {
     Thread {
@@ -884,7 +886,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
         // Add text overlay with prescription data
         // Determine if this is top or bottom prescription (even index = top, odd = bottom)
         val isTopPrescription = prescriptionIndex % 2 == 0
-        addPrescriptionDataToPage(newDoc, page, isTopPrescription, patientName, patientDocument, patientBirthDate, medication, dosage, instructions)
+        addPrescriptionDataToPage(newDoc, page, isTopPrescription, patientName, patientDocument, patientBirthDate, medication, dosage, instructions, signatureImagePath)
 
         // Save to cache
         val cacheDir = reactApplicationContext.cacheDir
@@ -944,6 +946,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
    * First tries to fill form fields if they exist, otherwise overlays text at configured positions.
    * 
    * @param isTopPrescription: true for top prescription, false for bottom prescription
+   * @param signatureImagePath: Optional path to signature image file
    */
   private fun addPrescriptionDataToPage(
     doc: PDFDoc,
@@ -954,19 +957,29 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     patientBirthDate: String,
     medication: String,
     dosage: String,
-    instructions: String
+    instructions: String,
+    signatureImagePath: String?
   ) {
     // Try to fill form fields first
     val fieldsFilled = tryFillFormFields(doc, patientName, patientDocument, patientBirthDate, medication, dosage, instructions)
     
     if (fieldsFilled) {
       Log.d("PdfSignerModule", "Prescription data filled in form fields")
+      // Still add signature image if available
+      if (!signatureImagePath.isNullOrEmpty()) {
+        addSignatureImage(doc, page, isTopPrescription, signatureImagePath)
+      }
       return
     }
     
     // If no form fields, overlay text at configured positions
     Log.d("PdfSignerModule", "No form fields found, using text overlay for ${if (isTopPrescription) "TOP" else "BOTTOM"} prescription")
     overlayPrescriptionText(doc, page, isTopPrescription, patientName, patientDocument, patientBirthDate, medication, dosage, instructions)
+    
+    // Add signature image if available
+    if (!signatureImagePath.isNullOrEmpty()) {
+      addSignatureImage(doc, page, isTopPrescription, signatureImagePath)
+    }
   }
 
   /**
@@ -1190,5 +1203,63 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     writer.end()
     
     Log.d("PdfSignerModule", "Text overlay completed for ${if (isTopPrescription) "TOP" else "BOTTOM"} prescription")
+  }
+
+  /**
+   * Adds signature image to the prescription PDF
+   */
+  private fun addSignatureImage(
+    doc: PDFDoc,
+    page: com.pdftron.pdf.Page,
+    isTopPrescription: Boolean,
+    signatureImagePath: String
+  ) {
+    try {
+      Log.d("PdfSignerModule", "Adding signature image: $signatureImagePath")
+      
+      // Get page dimensions
+      val pageRect = page.cropBox
+      val pageWidth = pageRect.width
+      val pageHeight = pageRect.height
+      
+      // Signature position and size
+      // Position in bottom right of each prescription area
+      val signatureWidth = 120.0
+      val signatureHeight = 40.0
+      val marginRight = 50.0
+      
+      val signatureX: Double
+      val signatureY: Double
+      
+      if (isTopPrescription) {
+        // Top prescription - bottom right of top half
+        signatureX = pageWidth - signatureWidth - marginRight
+        signatureY = pageHeight / 2 + 50.0  // Just above the middle line
+      } else {
+        // Bottom prescription - bottom right of bottom half
+        signatureX = pageWidth - signatureWidth - marginRight
+        signatureY = 50.0  // Near bottom of page
+      }
+      
+      // Create image from file
+      val img = com.pdftron.pdf.Image.create(doc, signatureImagePath)
+      
+      // Create element builder and writer
+      val builder = com.pdftron.pdf.ElementBuilder()
+      val writer = com.pdftron.pdf.ElementWriter()
+      
+      writer.begin(page, com.pdftron.pdf.ElementWriter.e_overlay, false, true)
+      
+      // Create image element
+      val element = builder.createImage(img, signatureX, signatureY, signatureWidth, signatureHeight)
+      writer.writePlacedElement(element)
+      
+      writer.end()
+      
+      Log.d("PdfSignerModule", "Signature image added at ($signatureX, $signatureY) size: ${signatureWidth}x${signatureHeight}")
+    } catch (e: Exception) {
+      Log.e("PdfSignerModule", "Error adding signature image: ${e.message}", e)
+      // Don't throw - signature is optional, continue without it
+    }
   }
 }

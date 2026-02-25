@@ -121,6 +121,15 @@ export const SettingsScreen = () => {
         <View style={styles.card}>
           <SettingsRow
             type="chevron"
+            icon="create-outline"
+            iconBg="#FEF3C7"
+            iconColor="#D97706"
+            label="Firma / Rúbrica"
+            subtitle="Configurar firma manuscrita"
+            onPress={() => (navigation as any).navigate('Signature')}
+          />
+          <SettingsRow
+            type="chevron"
             icon="settings-outline"
             iconBg="#F1F5F9"
             iconColor="#64748B"

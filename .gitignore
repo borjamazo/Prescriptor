@@ -27,6 +27,9 @@ out/
 build
 dist
 
+# Android APK files (generated builds)
+*.apk
+*.aab
 
 # Debug
 npm-debug.log*

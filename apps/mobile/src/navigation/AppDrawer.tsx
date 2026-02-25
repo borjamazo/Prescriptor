@@ -11,6 +11,7 @@ import { PrescriptionCreateScreen } from '../screens/PrescriptionCreateScreen';
 import { PrescriptionBlocksScreen } from '../screens/PrescriptionBlocksScreen';
 import { HelpCenterScreen } from '../screens/HelpCenterScreen';
 import { TermsOfServiceScreen } from '../screens/TermsOfServiceScreen';
+import { SignatureScreen } from '../screens/SignatureScreen';
 
 export type AppStackParamList = {
   MainTabs: undefined;
@@ -19,6 +20,7 @@ export type AppStackParamList = {
   PrescriptionBlocks: undefined;
   HelpCenter: undefined;
   TermsOfService: undefined;
+  Signature: undefined;
 };
 
 const Tab = createBottomTabNavigator();
@@ -97,5 +99,6 @@ export const AppStack = () => (
     <Stack.Screen name="PrescriptionBlocks"  component={PrescriptionBlocksScreen} />
     <Stack.Screen name="HelpCenter"          component={HelpCenterScreen} />
     <Stack.Screen name="TermsOfService"      component={TermsOfServiceScreen} />
+    <Stack.Screen name="Signature"           component={SignatureScreen} />
   </Stack.Navigator>
 );

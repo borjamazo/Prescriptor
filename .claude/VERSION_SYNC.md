@@ -72,13 +72,14 @@ npm run version:patch  # 0.0.3 → 0.0.4
 Para verificar que funciona correctamente:
 
 1. **Abre la app**
-2. **Ve al LoginScreen o RegisterScreen**
-3. **Verifica el footer**: Debería mostrar "© 2026 Prescriptor Pro • Versión 0.0.3"
+2. **Ve al LoginScreen, RegisterScreen o SettingsScreen**
+3. **Verifica el footer/versión**: Debería mostrar "Versión 0.0.5" (o la versión actual del package.json)
 
 ## Archivos Modificados
 
 - `apps/mobile/src/screens/LoginScreen.tsx` - Importa y usa la versión del package.json
 - `apps/mobile/src/screens/RegisterScreen.tsx` - Importa y usa la versión del package.json
+- `apps/mobile/src/services/ProfileService.ts` - Importa y usa la versión del package.json (para SettingsScreen)
 - `apps/mobile/tsconfig.json` - Habilita `resolveJsonModule` y `esModuleInterop`
 
 ## Próximas Versiones

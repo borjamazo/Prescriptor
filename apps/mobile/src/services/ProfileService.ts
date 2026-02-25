@@ -1,4 +1,5 @@
 import { getCurrentUserProfile, updateUserProfile, type UserProfile } from './SupabaseService';
+import { version } from '../../package.json';
 
 export interface DoctorProfile {
   id: string;
@@ -20,7 +21,7 @@ export interface UserPreferences {
   autoSave: boolean;
 }
 
-export const APP_VERSION = 'Version 2.1.0 • Build 2026.02';
+export const APP_VERSION = `Versión ${version} • Build 2026.02`;
 
 /**
  * Convierte un UserProfile de Supabase a DoctorProfile para la UI

@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { SectionLabel } from '../components/SectionLabel';
@@ -48,6 +48,7 @@ export const SettingsScreen = () => {
     twoFactorAuth: false,
     autoSave: true,
   });
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     loadProfile();
@@ -76,11 +77,14 @@ export const SettingsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(32, insets.bottom + 16) }
+        ]}
       >
         {/* Profile */}
         {profile && <ProfileCard profile={profile} />}
@@ -218,7 +222,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
   },
 
   // Profile card

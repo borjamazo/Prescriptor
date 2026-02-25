@@ -1,8 +1,11 @@
-# Instrucciones de Instalación - Selector de Fecha
+# Instrucciones de Instalación - Dependencias Nuevas
 
-## Nueva Dependencia Agregada
+## Nuevas Dependencias Agregadas
 
-Se ha agregado `@react-native-community/datetimepicker` para el selector de fecha de nacimiento.
+Se han agregado las siguientes dependencias:
+1. `@react-native-community/datetimepicker` - Selector de fecha
+2. `react-native-signature-canvas` - Canvas para capturar firma
+3. `react-native-webview` - Requerido por signature-canvas
 
 ## Pasos de Instalación
 
@@ -50,11 +53,16 @@ Después de instalar, verifica que:
 2. El campo "Fecha de Nacimiento" muestra un selector de fecha al hacer clic
 3. El selector es nativo del sistema (Android o iOS)
 4. La fecha se formatea correctamente a DD/MM/YYYY
+5. La pantalla de firma se abre sin errores
+6. Puedes dibujar con el dedo en el canvas
 
 ## Problemas Comunes
 
 ### Error: "Cannot find module '@react-native-community/datetimepicker'"
 **Solución:** Ejecuta `npm install` nuevamente
+
+### Error: "Cannot find module 'react-native-webview'"
+**Solución:** Ejecuta `npm install` nuevamente y reconstruye la app
 
 ### Error en iOS: "Pod not found"
 **Solución:** 
@@ -73,8 +81,22 @@ cd ..
 npm run android
 ```
 
+### Error: "RNCWebViewModule could not be found"
+**Solución:**
+1. Asegúrate de haber ejecutado `npm install`
+2. Limpia el build: `cd android && ./gradlew clean && cd ..`
+3. Reconstruye: `npm run android`
+4. Si persiste, elimina `node_modules` y reinstala:
+   ```bash
+   rm -rf node_modules
+   npm install
+   npm run android
+   ```
+
 ## Notas
 
 - Node version requerida: 20.19.3
-- La dependencia es compatible con React Native 0.83.1
+- Las dependencias son compatibles con React Native 0.83.1
+- `react-native-webview` requiere configuración automática (ya incluida)
 - No requiere configuración adicional en AndroidManifest.xml o Info.plist
+

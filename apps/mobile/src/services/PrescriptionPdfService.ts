@@ -100,7 +100,7 @@ export const PrescriptionPdfService = {
         prescriptionIndex,  // Pass prescription index to determine top/bottom position
         prescription.patientName,
         prescription.patientDocument,
-        prescription.patientBirthDate,
+        prescription.patientBirthDate || '',  // Use empty string if not provided
         prescription.medication,
         prescription.dosage,
         prescription.instructions,
@@ -172,7 +172,7 @@ export const PrescriptionPdfService = {
         prescriptionIndex,
         prescription.patientName,
         prescription.patientDocument,
-        prescription.patientBirthDate,
+        prescription.patientBirthDate || '',  // Use empty string if not provided
         prescription.medication,
         prescription.dosage,
         prescription.instructions,

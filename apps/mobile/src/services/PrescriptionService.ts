@@ -10,7 +10,7 @@ export interface Prescription {
   id: string;
   patientName: string;
   patientDocument: string;
-  patientBirthDate: string;
+  patientBirthDate?: string; // Optional for backwards compatibility
   rxNumber: string;
   status: PrescriptionStatus;
   medication: string;
@@ -26,7 +26,7 @@ export interface Prescription {
 export interface NewPrescriptionInput {
   patientName: string;
   patientDocument: string;
-  patientBirthDate: string;
+  patientBirthDate?: string; // Optional
   medication: string;
   dosage: string;
   instructions: string;

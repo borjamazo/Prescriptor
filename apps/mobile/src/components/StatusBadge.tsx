@@ -13,21 +13,21 @@ interface Config {
 
 const STATUS: Record<PrescriptionStatus, Config> = {
   pending: {
-    label: 'Pending',
+    label: 'Pendiente',
     icon: 'time-outline',
     iconColor: '#D97706',
     badgeStyle: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
     textStyle: { color: '#D97706' },
   },
   signed: {
-    label: 'Signed',
+    label: 'Firmada',
     icon: 'checkmark-circle-outline',
     iconColor: '#059669',
     badgeStyle: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
     textStyle: { color: '#059669' },
   },
   expired: {
-    label: 'Expired',
+    label: 'Expirada',
     icon: 'alert-circle-outline',
     iconColor: '#EF4444',
     badgeStyle: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },

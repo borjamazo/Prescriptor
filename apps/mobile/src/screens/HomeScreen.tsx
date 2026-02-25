@@ -20,7 +20,7 @@ import { isDebugMode } from '../config/debugConfig';
 // ═══════════════════════════════════════════════════════════════════
 
 const formatDate = (d: Date) =>
-  d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
 export const HomeScreen = () => {
   const navigation = useNavigation();
@@ -211,8 +211,8 @@ export const HomeScreen = () => {
           <Text style={styles.welcomeTitle}>Bienvenido, {getUserName()}</Text>
           <Text style={styles.dateText}>{formatDate(new Date())}</Text>
           <View style={styles.statsRow}>
-            <StatCard value={stats.pending} label="Pending" />
-            <StatCard value={stats.signedToday} label="Signed Today" />
+            <StatCard value={stats.pending} label="Pendientes" />
+            <StatCard value={stats.signedToday} label="Firmadas Hoy" />
           </View>
         </View>
 
@@ -231,7 +231,7 @@ export const HomeScreen = () => {
         </View>
 
         {/* ── Prescription list ── */}
-        <Text style={styles.sectionTitle}>Recent Prescriptions</Text>
+        <Text style={styles.sectionTitle}>Prescripciones Recientes</Text>
         {filtered.map(p => (
           <PrescriptionCard
             key={p.id}

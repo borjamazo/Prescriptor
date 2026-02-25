@@ -57,7 +57,7 @@ export const DEFAULT_PRESCRIPTION_LAYOUT: PrescriptionLayoutConfig = {
     patientName: { x: 150, y: 700 },        // Nombre del paciente
     patientDocument: { x: 150, y: 680 },    // DNI/Documento
     medication: { x: 150, y: 640 },         // Medicamento
-    dosage: { x: 150, y: 620 },             // Dosis
+    dosage: { x: 150, y: 620 },             // Duración
     instructions: { x: 150, y: 580 },       // Instrucciones/Posología
   },
   
@@ -67,7 +67,7 @@ export const DEFAULT_PRESCRIPTION_LAYOUT: PrescriptionLayoutConfig = {
     patientName: { x: 150, y: 350 },        // Nombre del paciente
     patientDocument: { x: 150, y: 330 },    // DNI/Documento
     medication: { x: 150, y: 290 },         // Medicamento
-    dosage: { x: 150, y: 270 },             // Dosis
+    dosage: { x: 150, y: 270 },             // Duración
     instructions: { x: 150, y: 230 },       // Instrucciones/Posología
   },
 };

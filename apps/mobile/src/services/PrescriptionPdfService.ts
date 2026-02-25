@@ -95,6 +95,7 @@ export const PrescriptionPdfService = {
         prescriptionIndex,  // Pass prescription index to determine top/bottom position
         prescription.patientName,
         prescription.patientDocument,
+        prescription.patientBirthDate,
         prescription.medication,
         prescription.dosage,
         prescription.instructions,

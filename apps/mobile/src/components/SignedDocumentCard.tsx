@@ -29,12 +29,12 @@ export const SignedDocumentCard = ({ record, onOpen, onShare }: Props) => (
     <View style={styles.actions}>
       <TouchableOpacity style={styles.actionBtn} onPress={onOpen} activeOpacity={0.7}>
         <Ionicons name="eye-outline" size={15} color="#5551F5" />
-        <Text style={styles.actionText}>Open</Text>
+        <Text style={styles.actionText}>Abrir</Text>
       </TouchableOpacity>
       <View style={styles.actionDivider} />
       <TouchableOpacity style={styles.actionBtn} onPress={onShare} activeOpacity={0.7}>
         <Ionicons name="share-outline" size={15} color="#5551F5" />
-        <Text style={styles.actionText}>Share</Text>
+        <Text style={styles.actionText}>Compartir</Text>
       </TouchableOpacity>
     </View>
   </View>

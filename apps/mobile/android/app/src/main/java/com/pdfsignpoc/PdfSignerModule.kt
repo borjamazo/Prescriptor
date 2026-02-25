@@ -804,8 +804,9 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
    * @param prescriptionIndex: Index of prescription in block (0-based) - used to determine top/bottom position
    * @param patientName: Patient's full name
    * @param patientDocument: Patient's document (DNI, etc.)
+   * @param patientBirthDate: Patient's birth date (DD/MM/AAAA)
    * @param medication: Medication name
-   * @param dosage: Dosage instructions
+   * @param dosage: Treatment duration (e.g., 7 days, 2 weeks)
    * @param instructions: Additional instructions/posology
    */
   @ReactMethod
@@ -816,6 +817,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     prescriptionIndex: Int,
     patientName: String,
     patientDocument: String,
+    patientBirthDate: String,
     medication: String,
     dosage: String,
     instructions: String,
@@ -865,7 +867,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
         // Add text overlay with prescription data
         // Determine if this is top or bottom prescription (even index = top, odd = bottom)
         val isTopPrescription = prescriptionIndex % 2 == 0
-        addPrescriptionDataToPage(newDoc, page, isTopPrescription, patientName, patientDocument, medication, dosage, instructions)
+        addPrescriptionDataToPage(newDoc, page, isTopPrescription, patientName, patientDocument, patientBirthDate, medication, dosage, instructions)
 
         // Save to cache
         val cacheDir = reactApplicationContext.cacheDir
@@ -932,12 +934,13 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     isTopPrescription: Boolean,
     patientName: String,
     patientDocument: String,
+    patientBirthDate: String,
     medication: String,
     dosage: String,
     instructions: String
   ) {
     // Try to fill form fields first
-    val fieldsFilled = tryFillFormFields(doc, patientName, patientDocument, medication, dosage, instructions)
+    val fieldsFilled = tryFillFormFields(doc, patientName, patientDocument, patientBirthDate, medication, dosage, instructions)
     
     if (fieldsFilled) {
       Log.d("PdfSignerModule", "Prescription data filled in form fields")
@@ -946,7 +949,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     
     // If no form fields, overlay text at configured positions
     Log.d("PdfSignerModule", "No form fields found, using text overlay for ${if (isTopPrescription) "TOP" else "BOTTOM"} prescription")
-    overlayPrescriptionText(doc, page, isTopPrescription, patientName, patientDocument, medication, dosage, instructions)
+    overlayPrescriptionText(doc, page, isTopPrescription, patientName, patientDocument, patientBirthDate, medication, dosage, instructions)
   }
 
   /**
@@ -957,6 +960,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     doc: PDFDoc,
     patientName: String,
     patientDocument: String,
+    patientBirthDate: String,
     medication: String,
     dosage: String,
     instructions: String
@@ -969,10 +973,11 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
         // Patient fields
         listOf("paciente", "patient", "nombre", "name", "apellidos") to patientName,
         listOf("dni", "documento", "document", "id", "nif", "nie") to patientDocument,
+        listOf("fecha_nacimiento", "birth_date", "birthdate", "nacimiento", "fecha_nac", "dob") to patientBirthDate,
         
         // Medication fields
         listOf("medicamento", "medication", "medicine", "farmaco", "principio_activo") to medication,
-        listOf("dosis", "dosage", "dose", "cantidad") to dosage,
+        listOf("duracion", "duration", "dosis", "dosage", "dose", "cantidad") to dosage,
         listOf("posologia", "instrucciones", "instructions", "indicaciones") to instructions
       )
       
@@ -1022,6 +1027,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     isTopPrescription: Boolean,
     patientName: String,
     patientDocument: String,
+    patientBirthDate: String,
     medication: String,
     dosage: String,
     instructions: String
@@ -1063,30 +1069,36 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     // Coordenadas para RECETA SUPERIOR (mitad superior de la página)
     val topPatientNameX = 150.0
     val topPatientNameY = 700.0
+    val topPatientBirthDateX = 150.0
+    val topPatientBirthDateY = 680.0
     val topPatientDocX = 150.0
-    val topPatientDocY = 680.0
+    val topPatientDocY = 660.0
     val topMedicationX = 150.0
-    val topMedicationY = 640.0
+    val topMedicationY = 620.0
     val topDosageX = 150.0
-    val topDosageY = 620.0
+    val topDosageY = 600.0
     val topInstructionsX = 150.0
-    val topInstructionsY = 580.0
+    val topInstructionsY = 560.0
     
     // Coordenadas para RECETA INFERIOR (mitad inferior de la página)
     val bottomPatientNameX = 150.0
     val bottomPatientNameY = 350.0
+    val bottomPatientBirthDateX = 150.0
+    val bottomPatientBirthDateY = 330.0
     val bottomPatientDocX = 150.0
-    val bottomPatientDocY = 330.0
+    val bottomPatientDocY = 310.0
     val bottomMedicationX = 150.0
-    val bottomMedicationY = 290.0
+    val bottomMedicationY = 270.0
     val bottomDosageX = 150.0
-    val bottomDosageY = 270.0
+    val bottomDosageY = 250.0
     val bottomInstructionsX = 150.0
-    val bottomInstructionsY = 230.0
+    val bottomInstructionsY = 210.0
     
     // Seleccionar coordenadas según posición
     val patNameX: Double
     val patNameY: Double
+    val patBirthDateX: Double
+    val patBirthDateY: Double
     val patDocX: Double
     val patDocY: Double
     val medX: Double
@@ -1099,6 +1111,8 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     if (isTopPrescription) {
       patNameX = topPatientNameX
       patNameY = topPatientNameY
+      patBirthDateX = topPatientBirthDateX
+      patBirthDateY = topPatientBirthDateY
       patDocX = topPatientDocX
       patDocY = topPatientDocY
       medX = topMedicationX
@@ -1110,6 +1124,8 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     } else {
       patNameX = bottomPatientNameX
       patNameY = bottomPatientNameY
+      patBirthDateX = bottomPatientBirthDateX
+      patBirthDateY = bottomPatientBirthDateY
       patDocX = bottomPatientDocX
       patDocY = bottomPatientDocY
       medX = bottomMedicationX
@@ -1124,6 +1140,11 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     addTextAt(patientName, patNameX, patNameY)
     Log.d("PdfSignerModule", "Patient name at ($patNameX, $patNameY)")
     
+    if (patientBirthDate.isNotEmpty()) {
+      addTextAt(patientBirthDate, patBirthDateX, patBirthDateY)
+      Log.d("PdfSignerModule", "Patient birth date at ($patBirthDateX, $patBirthDateY)")
+    }
+    
     if (patientDocument.isNotEmpty()) {
       addTextAt(patientDocument, patDocX, patDocY)
       Log.d("PdfSignerModule", "Patient document at ($patDocX, $patDocY)")
@@ -1133,7 +1154,7 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     Log.d("PdfSignerModule", "Medication at ($medX, $medY)")
     
     addTextAt(dosage, dosX, dosY)
-    Log.d("PdfSignerModule", "Dosage at ($dosX, $dosY)")
+    Log.d("PdfSignerModule", "Duration at ($dosX, $dosY)")
     
     if (instructions.isNotEmpty()) {
       // Split long text into multiple lines

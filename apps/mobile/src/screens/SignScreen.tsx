@@ -114,7 +114,7 @@ const SuccessCard = ({ signedPath, onOpen, onShare }: SuccessCardProps) => (
         activeOpacity={0.8}
       >
         <Ionicons name="eye-outline" size={16} color="#ffffff" />
-        <Text style={styles.successBtnPrimaryText}>Open PDF</Text>
+        <Text style={styles.successBtnPrimaryText}>Abrir PDF</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.successBtn, styles.successBtnOutline]}
@@ -122,7 +122,7 @@ const SuccessCard = ({ signedPath, onOpen, onShare }: SuccessCardProps) => (
         activeOpacity={0.8}
       >
         <Ionicons name="share-outline" size={16} color="#5551F5" />
-        <Text style={styles.successBtnOutlineText}>Share PDF</Text>
+        <Text style={styles.successBtnOutlineText}>Compartir PDF</Text>
       </TouchableOpacity>
     </View>
   </View>
@@ -203,8 +203,8 @@ export const SignScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>Sign Document</Text>
-            <Text style={styles.headerSubtitle}>PAdES digital signature</Text>
+            <Text style={styles.headerTitle}>Firmar Documento</Text>
+            <Text style={styles.headerSubtitle}>Firma digital PAdES</Text>
           </View>
           <View style={styles.headerIconWrap}>
             <Ionicons name="create-outline" size={22} color="#5551F5" />
@@ -212,7 +212,7 @@ export const SignScreen = () => {
         </View>
 
         {/* Document selection */}
-        <SectionLabel title="DOCUMENT" />
+        <SectionLabel title="DOCUMENTO" />
         <DocumentZone
           document={document}
           onSelect={handleSelectDocument}
@@ -222,7 +222,7 @@ export const SignScreen = () => {
         {/* Sign button */}
         <View style={styles.signButtonWrap}>
           <PrimaryButton
-            title="Sign Document"
+            title="Firmar Documento"
             onPress={handleSign}
             loading={busy}
             disabled={!document || !!signedPath}

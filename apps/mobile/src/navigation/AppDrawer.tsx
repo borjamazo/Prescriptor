@@ -50,7 +50,7 @@ const MainTabs = () => (
       name="Home"
       component={HomeScreen}
       options={{
-        title: 'Home',
+        title: 'Inicio',
         tabBarIcon: ({ focused, color, size }) => (
           <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
         ),
@@ -60,7 +60,7 @@ const MainTabs = () => (
       name="Stats"
       component={StatsScreen}
       options={{
-        title: 'Stats',
+        title: 'Estadísticas',
         tabBarIcon: ({ focused, color, size }) => (
           <Ionicons name={focused ? 'stats-chart' : 'stats-chart-outline'} size={size} color={color} />
         ),
@@ -80,7 +80,7 @@ const MainTabs = () => (
       name="Settings"
       component={SettingsScreen}
       options={{
-        title: 'Settings',
+        title: 'Ajustes',
         tabBarIcon: ({ focused, color, size }) => (
           <Ionicons name={focused ? 'settings' : 'settings-outline'} size={size} color={color} />
         ),

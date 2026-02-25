@@ -32,6 +32,7 @@ export const PrescriptionCreateScreen = () => {
 
   const [patientName, setPatientName]       = useState('');
   const [patientDocument, setPatientDocument] = useState('');
+  const [patientBirthDate, setPatientBirthDate] = useState('');
   const [medication, setMedication]         = useState('');
   const [dosage, setDosage]                 = useState('');
   const [instructions, setInstructions]     = useState('');
@@ -52,7 +53,7 @@ export const PrescriptionCreateScreen = () => {
 
   const handleCreate = async () => {
     if (!isFormValid) {
-      Alert.alert('Campos requeridos', 'Nombre del paciente, medicamento y dosis son obligatorios.');
+      Alert.alert('Campos requeridos', 'Nombre del paciente, medicamento y duración son obligatorios.');
       return;
     }
     setLoading(true);
@@ -60,6 +61,7 @@ export const PrescriptionCreateScreen = () => {
       const input: NewPrescriptionInput = {
         patientName: patientName.trim(),
         patientDocument: patientDocument.trim(),
+        patientBirthDate: patientBirthDate.trim(),
         medication: medication.trim(),
         dosage: dosage.trim(),
         instructions: instructions.trim(),
@@ -139,6 +141,14 @@ export const PrescriptionCreateScreen = () => {
             autoCapitalize="words"
           />
           <TextInputField
+            label="Fecha de Nacimiento"
+            value={patientBirthDate}
+            onChangeText={setPatientBirthDate}
+            placeholder="DD/MM/AAAA"
+            leftIcon="calendar-outline"
+            keyboardType="numeric"
+          />
+          <TextInputField
             label="Documento del Paciente"
             value={patientDocument}
             onChangeText={setPatientDocument}
@@ -155,11 +165,11 @@ export const PrescriptionCreateScreen = () => {
             autoCapitalize="words"
           />
           <FormField
-            label="Dosis"
+            label="Duración"
             value={dosage}
             onChangeText={setDosage}
-            placeholder="Ej., 500mg - 3x al día"
-            helperText="Especifica la cantidad y frecuencia"
+            placeholder="Ej., 7 días, 2 semanas, 1 mes"
+            helperText="Especifica la duración del tratamiento"
           />
           <FormField
             label="Posología (Instrucciones)"
@@ -177,8 +187,9 @@ export const PrescriptionCreateScreen = () => {
           <Text style={styles.previewTitle}>Vista Previa</Text>
           <View style={styles.previewDivider} />
           <PreviewRow label="Paciente:"      value={patientName} />
+          <PreviewRow label="Fecha Nac.:"    value={patientBirthDate} />
           <PreviewRow label="Medicamento:"   value={medication} />
-          <PreviewRow label="Dosis:"         value={dosage} />
+          <PreviewRow label="Duración:"      value={dosage} />
           <View style={styles.previewInstructionsBlock}>
             <Text style={styles.previewLabel}>Instrucciones:</Text>
             <Text style={styles.previewInstructionsValue}>

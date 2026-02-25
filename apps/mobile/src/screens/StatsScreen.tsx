@@ -267,8 +267,8 @@ export const StatsScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>Statistics</Text>
-            <Text style={styles.headerSubtitle}>Your prescription insights</Text>
+            <Text style={styles.headerTitle}>Estadísticas</Text>
+            <Text style={styles.headerSubtitle}>Resumen de tus prescripciones</Text>
           </View>
           <View style={styles.headerIconWrap}>
             <Ionicons name="pulse-outline" size={22} color="#5551F5" />
@@ -278,22 +278,22 @@ export const StatsScreen = () => {
         {/* Metric cards */}
         <View style={styles.metricRow}>
           <MetricCard
-            label="This Week"
+            label="Esta Semana"
             count={stats.thisWeek.count}
             change={stats.thisWeek.change}
-            subtitle="from last week"
+            subtitle="desde la semana pasada"
           />
           <MetricCard
-            label="This Month"
+            label="Este Mes"
             count={stats.thisMonth.count}
             change={stats.thisMonth.change}
-            subtitle="from January"
+            subtitle="desde enero"
           />
         </View>
 
         {/* Weekly Activity */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Weekly Activity</Text>
+          <Text style={styles.cardTitle}>Actividad Semanal</Text>
           <View style={styles.chartWrap}>
             <BarChart data={stats.weeklyActivity} />
           </View>
@@ -302,15 +302,15 @@ export const StatsScreen = () => {
         {/* Monthly Comparison */}
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
-            <Text style={styles.cardTitle}>Monthly Comparison</Text>
+            <Text style={styles.cardTitle}>Comparación Mensual</Text>
             <View style={styles.legend}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: '#5551F5' }]} />
-                <Text style={styles.legendText}>Signed</Text>
+                <Text style={styles.legendText}>Firmadas</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-                <Text style={styles.legendText}>Pending</Text>
+                <Text style={styles.legendText}>Pendientes</Text>
               </View>
             </View>
           </View>

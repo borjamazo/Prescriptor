@@ -10,6 +10,7 @@ export interface Prescription {
   id: string;
   patientName: string;
   patientDocument: string;
+  patientBirthDate: string;
   rxNumber: string;
   status: PrescriptionStatus;
   medication: string;
@@ -25,6 +26,7 @@ export interface Prescription {
 export interface NewPrescriptionInput {
   patientName: string;
   patientDocument: string;
+  patientBirthDate: string;
   medication: string;
   dosage: string;
   instructions: string;
@@ -124,6 +126,7 @@ export const PrescriptionService = {
       id: generatePrescriptionId(),
       patientName: input.patientName,
       patientDocument: input.patientDocument,
+      patientBirthDate: input.patientBirthDate,
       rxNumber: usedReceta.serial,
       status: 'pending',
       medication: input.medication,

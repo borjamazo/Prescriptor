@@ -3,7 +3,9 @@
   "compilerOptions": {
     "types": [
       "jest"
-    ]
+    ],
+    "resolveJsonModule": true,
+    "esModuleInterop": true
   },
   "include": [
     "**/*.ts",

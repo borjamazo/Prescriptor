@@ -16,6 +16,7 @@ import { TextInputField } from '../components/TextInputField';
 import { useAuth } from '../contexts/AuthContext';
 import type { AuthStackParamList } from '../navigation/AuthStack';
 import { AppIcon } from '../components/AppIcon';
+import { version } from '../../package.json';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Register'>;
@@ -142,7 +143,7 @@ export const RegisterScreen = ({ navigation }: Props) => {
           {/* ── Footer ── */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              © 2026 Prescriptor Pro • Versión 2.1.0
+              © 2026 Prescriptor Pro • Versión {version}
             </Text>
           </View>
         </ScrollView>

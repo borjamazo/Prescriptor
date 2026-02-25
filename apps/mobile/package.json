@@ -1,6 +1,6 @@
 {
   "name": "@prescriptor/mobile",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "private": true,
   "scripts": {
     "android": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && react-native run-android'",
@@ -16,7 +16,9 @@
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
     "generate:splash": "python3 scripts/generate-splash-screens.py",
-    "generate:icons": "python3 scripts/generate-app-icons.py"
+    "generate:icons": "python3 scripts/generate-app-icons.py",
+    "update:bootsplash": "node scripts/update-bootsplash-android.js",
+    "update:splash": "node scripts/update-splash-android.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

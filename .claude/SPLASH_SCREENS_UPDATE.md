@@ -149,3 +149,7 @@ du -h assets/splash_screens/ios/splash*.jpg
 **Fecha de actualización**: 25 de febrero de 2026
 **Logo utilizado**: `app-logo.png` (2048x2048)
 **Total de archivos actualizados**: 10 (5 Android + 5 iOS)
+
+## Ver También
+
+- [Actualización de Iconos de la App](./APP_ICONS_UPDATE.md) - Cómo se actualizaron los iconos de la app

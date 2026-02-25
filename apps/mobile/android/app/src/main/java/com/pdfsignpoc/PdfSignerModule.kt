@@ -176,6 +176,154 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     }
   }
 
+  /**
+   * Signs a PDF digitally and adds signature text (doctor name, date, time).
+   * This method adds visible text before applying the digital signature.
+   */
+  @ReactMethod
+  fun signPdfWithText(
+    inputPdfPath: String,
+    doctorName: String,
+    signDate: String,
+    signTime: String,
+    promise: Promise
+  ) {
+    val activity = reactApplicationContext.currentActivity
+    if (activity == null) {
+      promise.reject("E_NO_ACTIVITY", "No active activity")
+      return
+    }
+
+    if (inputPdfPath.isBlank()) {
+      promise.reject("E_INVALID_INPUT", "Input PDF path is empty")
+      return
+    }
+
+    activity.runOnUiThread {
+      KeyChain.choosePrivateKeyAlias(
+        activity,
+        KeyChainAliasCallback { alias ->
+          if (alias == null) {
+            promise.reject("E_CANCELLED", "User cancelled certificate selection")
+            return@KeyChainAliasCallback
+          }
+
+          Thread {
+            try {
+              ensurePdfNetInitialized()
+              val privateKey = KeyChain.getPrivateKey(activity, alias)
+              val certChain = KeyChain.getCertificateChain(activity, alias)
+              if (privateKey == null || certChain == null || certChain.isEmpty()) {
+                promise.reject("E_KEYCHAIN", "Failed to retrieve certificate chain")
+                return@Thread
+              }
+
+              val inputFile = resolveInputToFile(inputPdfPath)
+              if (!inputFile.exists()) {
+                promise.reject("E_INPUT", "Input PDF not found")
+                return@Thread
+              }
+
+              // Step 1: Add signature text to PDF
+              val tempWithText = File(reactApplicationContext.filesDir, "with_text_${System.currentTimeMillis()}.pdf")
+              addSignatureTextToPdf(inputFile.absolutePath, tempWithText.absolutePath, doctorName, signDate, signTime)
+
+              // Step 2: Sign the PDF with text
+              val tempOutputFile = File(reactApplicationContext.filesDir, "signed_${System.currentTimeMillis()}.pdf")
+              signWithApryse(tempWithText.absolutePath, tempOutputFile.absolutePath, privateKey, certChain)
+              
+              // Clean up temp file
+              tempWithText.delete()
+              
+              val downloadUri = saveToDownloads(tempOutputFile)
+              promise.resolve(downloadUri.toString())
+            } catch (e: Exception) {
+              promise.reject("E_SIGN", e.message, e)
+            }
+          }.start()
+        },
+        null,
+        null,
+        null,
+        -1,
+        null,
+      )
+    }
+  }
+
+  /**
+   * Adds signature text to the bottom right of the first page of a PDF.
+   * Text format:
+   * "Firmado digitalmente por [doctorName]"
+   * "Fecha: [signDate]"
+   * "Hora: [signTime]"
+   */
+  private fun addSignatureTextToPdf(
+    inputPath: String,
+    outputPath: String,
+    doctorName: String,
+    signDate: String,
+    signTime: String
+  ) {
+    val doc = PDFDoc(inputPath)
+    doc.initSecurityHandler()
+
+    val page = doc.getPage(1)
+    if (page == null || !page.isValid) {
+      doc.close()
+      throw IllegalStateException("Invalid first page")
+    }
+
+    val writer = com.pdftron.pdf.ElementWriter()
+    val builder = com.pdftron.pdf.ElementBuilder()
+    
+    writer.begin(page, com.pdftron.pdf.ElementWriter.e_overlay, false, true)
+
+    // Get page dimensions
+    val pageRect = page.cropBox
+    val pageWidth = pageRect.width
+    val pageHeight = pageRect.height
+
+    // Font configuration
+    val fontSize = 8.0
+    val font = com.pdftron.pdf.Font.create(doc, com.pdftron.pdf.Font.e_helvetica)
+
+    // Position: bottom right corner with some margin
+    val marginRight = 50.0
+    val marginBottom = 30.0
+    val lineHeight = 10.0
+
+    // Calculate X position (right-aligned)
+    val textX = pageWidth - marginRight - 150.0  // 150 is approximate text width
+    
+    // Calculate Y positions (from bottom)
+    val line1Y = marginBottom + lineHeight * 2  // "Hora: XX:XX"
+    val line2Y = marginBottom + lineHeight      // "Fecha: DD/MM/YYYY"
+    val line3Y = marginBottom                    // "Firmado digitalmente por..."
+
+    // Helper function to add text
+    fun addTextAt(text: String, x: Double, y: Double) {
+      val element = builder.createTextBegin(font, fontSize)
+      writer.writeElement(element)
+
+      val textElement = builder.createTextRun(text)
+      textElement.setTextMatrix(1.0, 0.0, 0.0, 1.0, x, y)
+      writer.writeElement(textElement)
+
+      val endElement = builder.createTextEnd()
+      writer.writeElement(endElement)
+    }
+
+    // Add the three lines of text
+    addTextAt("Firmado digitalmente por $doctorName", textX, line3Y)
+    addTextAt("Fecha: $signDate", textX, line2Y)
+    addTextAt("Hora: $signTime", textX, line1Y)
+
+    writer.end()
+    doc.save(outputPath, SDFDoc.SaveMode.LINEARIZED, null)
+    doc.close()
+  }
+
   private fun ensurePdfNetInitialized() {
     if (initialized.compareAndSet(false, true)) {
       // Initialize PDFNet with trial/demo mode (empty license)

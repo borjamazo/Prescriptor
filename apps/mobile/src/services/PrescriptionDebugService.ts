@@ -64,6 +64,10 @@ export const PrescriptionDebugService = {
     console.log(`[DEBUG] Page: ${pageIndex}, Index: ${prescriptionIndex}, Position: ${position}`);
 
     try {
+      // Get signature if available
+      const { SignatureService } = await import('./SignatureService');
+      const signaturePath = await SignatureService.getSignatureFilePath();
+      
       // Create prescription PDF without signing
       const pdfUri = await PdfSigner.createPrescriptionPdf(
         block.fileUri,
@@ -72,9 +76,11 @@ export const PrescriptionDebugService = {
         prescriptionIndex,
         prescription.patientName,
         prescription.patientDocument,
+        prescription.patientBirthDate || '',
         prescription.medication,
         prescription.dosage,
         prescription.instructions,
+        signaturePath,
       );
 
       console.log('[DEBUG] PDF regenerated:', pdfUri);

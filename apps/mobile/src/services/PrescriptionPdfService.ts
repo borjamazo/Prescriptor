@@ -109,9 +109,25 @@ export const PrescriptionPdfService = {
 
       console.log('Prescription PDF created:', prescriptionPdfUri);
 
-      // Step 2: Sign the PDF digitally with PAdES
+      // Step 2: Sign the PDF digitally with PAdES and add signature text
       console.log('Signing prescription PDF...');
-      const signedPdfUri = await PdfSigner.signPdf(prescriptionPdfUri);
+      
+      // Get user profile for signature text
+      const { ProfileService } = await import('./ProfileService');
+      const profile = await ProfileService.getProfile();
+      const doctorName = profile?.name || 'Doctor';
+      
+      // Get current date and time
+      const now = new Date();
+      const signDate = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const signTime = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      
+      const signedPdfUri = await PdfSigner.signPdfWithText(
+        prescriptionPdfUri,
+        doctorName,
+        signDate,
+        signTime,
+      );
 
       console.log('Prescription PDF signed:', signedPdfUri);
 

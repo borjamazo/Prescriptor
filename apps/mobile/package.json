@@ -1,6 +1,6 @@
 {
   "name": "@prescriptor/mobile",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "scripts": {
     "android": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && react-native run-android'",
@@ -8,7 +8,13 @@
     "lint": "eslint .",
     "start": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && react-native start'",
     "test": "jest",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "build:android": "bash -c 'source ~/.nvm/nvm.sh && nvm use 20.19.3 && npm run prebuild:release && npx react-native build-android --mode=release && npm run postbuild:release'",
+    "prebuild:release": "node scripts/prepare-release.js",
+    "postbuild:release": "node scripts/copy-apk.js",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

@@ -80,7 +80,7 @@ export const HomeScreen = () => {
           onPress: async () => {
             setSigningId(prescription.id);
             try {
-              // Create and sign prescription PDF
+              // Try to create and sign prescription PDF
               const signedPdfUri = await PrescriptionPdfService.createAndSignPrescription({
                 prescription,
                 blockId: prescription.blockId!,
@@ -100,12 +100,59 @@ export const HomeScreen = () => {
                   { text: 'Cerrar', style: 'cancel' },
                 ],
               );
-            } catch (error) {
+            } catch (error: any) {
               console.error('Error signing prescription:', error);
-              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-              Alert.alert('Error', `No se pudo firmar la receta: ${errorMessage}`);
-            } finally {
-              setSigningId(null);
+              
+              // Check if user cancelled certificate selection
+              if (error?.code === 'E_CANCELLED' || error?.message?.includes('cancelled')) {
+                // Show warning about unsigned prescription
+                Alert.alert(
+                  '⚠️ Sin certificado digital',
+                  'No se ha seleccionado un certificado digital.\n\n¿Deseas generar la receta SIN FIRMA DIGITAL?\n\nADVERTENCIA: Una receta sin firma digital puede no ser válida legalmente.',
+                  [
+                    { text: 'Cancelar', style: 'cancel', onPress: () => setSigningId(null) },
+                    {
+                      text: 'Generar sin firma',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          // Create prescription without signature
+                          const unsignedPdfUri = await PrescriptionPdfService.createPrescriptionWithoutSignature({
+                            prescription,
+                            blockId: prescription.blockId!,
+                          });
+
+                          // Update status to signed (even though it's not digitally signed)
+                          await PrescriptionService.updateStatus(prescription.id, 'signed');
+                          await loadData();
+
+                          // Show success with warning
+                          Alert.alert(
+                            '⚠️ Receta generada sin firma',
+                            'La receta se ha generado pero NO está firmada digitalmente.\n\nPuede que no sea válida legalmente.',
+                            [
+                              { text: 'Ver PDF', onPress: () => PrescriptionPdfService.openPrescription(unsignedPdfUri) },
+                              { text: 'Compartir', onPress: () => PrescriptionPdfService.sharePrescription(unsignedPdfUri) },
+                              { text: 'Cerrar', style: 'cancel' },
+                            ],
+                          );
+                        } catch (unsignedError) {
+                          console.error('Error creating unsigned prescription:', unsignedError);
+                          const errorMessage = unsignedError instanceof Error ? unsignedError.message : 'Error desconocido';
+                          Alert.alert('Error', `No se pudo generar la receta: ${errorMessage}`);
+                        } finally {
+                          setSigningId(null);
+                        }
+                      },
+                    },
+                  ],
+                );
+              } else {
+                // Other error
+                const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+                Alert.alert('Error', `No se pudo firmar la receta: ${errorMessage}`);
+                setSigningId(null);
+              }
             }
           },
         },

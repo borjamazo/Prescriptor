@@ -13,6 +13,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { TextInputField } from '../components/TextInputField';
+import { DatePickerField } from '../components/DatePickerField';
 import {
   NewPrescriptionInput,
   PrescriptionService,
@@ -32,7 +33,7 @@ export const PrescriptionCreateScreen = () => {
 
   const [patientName, setPatientName]       = useState('');
   const [patientDocument, setPatientDocument] = useState('');
-  const [patientBirthDate, setPatientBirthDate] = useState('');
+  const [patientBirthDate, setPatientBirthDate] = useState<Date | null>(null);
   const [medication, setMedication]         = useState('');
   const [dosage, setDosage]                 = useState('');
   const [instructions, setInstructions]     = useState('');
@@ -58,10 +59,19 @@ export const PrescriptionCreateScreen = () => {
     }
     setLoading(true);
     try {
+      // Format birth date to DD/MM/YYYY
+      const formatDate = (date: Date | null): string => {
+        if (!date) return '';
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      };
+
       const input: NewPrescriptionInput = {
         patientName: patientName.trim(),
         patientDocument: patientDocument.trim(),
-        patientBirthDate: patientBirthDate.trim(),
+        patientBirthDate: formatDate(patientBirthDate),
         medication: medication.trim(),
         dosage: dosage.trim(),
         instructions: instructions.trim(),
@@ -140,13 +150,13 @@ export const PrescriptionCreateScreen = () => {
             leftIcon="person-outline"
             autoCapitalize="words"
           />
-          <TextInputField
+          <DatePickerField
             label="Fecha de Nacimiento"
             value={patientBirthDate}
-            onChangeText={setPatientBirthDate}
-            placeholder="DD/MM/AAAA"
+            onChange={setPatientBirthDate}
+            placeholder="Seleccionar fecha"
             leftIcon="calendar-outline"
-            keyboardType="numeric"
+            maximumDate={new Date()}
           />
           <TextInputField
             label="Documento del Paciente"
@@ -187,7 +197,7 @@ export const PrescriptionCreateScreen = () => {
           <Text style={styles.previewTitle}>Vista Previa</Text>
           <View style={styles.previewDivider} />
           <PreviewRow label="Paciente:"      value={patientName} />
-          <PreviewRow label="Fecha Nac.:"    value={patientBirthDate} />
+          <PreviewRow label="Fecha Nac.:"    value={patientBirthDate ? `${patientBirthDate.getDate().toString().padStart(2, '0')}/${(patientBirthDate.getMonth() + 1).toString().padStart(2, '0')}/${patientBirthDate.getFullYear()}` : ''} />
           <PreviewRow label="Medicamento:"   value={medication} />
           <PreviewRow label="Duración:"      value={dosage} />
           <View style={styles.previewInstructionsBlock}>

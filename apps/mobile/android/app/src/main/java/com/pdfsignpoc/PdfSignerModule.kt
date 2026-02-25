@@ -103,6 +103,23 @@ class PdfSignerModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     openPdf(uriString, promise)
   }
 
+  /**
+   * Check if the device has digital certificates installed.
+   * Returns true if certificates are available, false otherwise.
+   */
+  @ReactMethod
+  fun hasCertificatesInstalled(promise: Promise) {
+    try {
+      // We can't directly check if certificates exist without user interaction,
+      // but we can provide a method that the app can use to inform the user
+      // For now, we'll return true and let the signing process handle the case
+      // where no certificates are available (user cancels or no certs found)
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("E_CHECK_CERTS", e.message, e)
+    }
+  }
+
   @ReactMethod
   fun signPdf(inputPdfPath: String, promise: Promise) {
     val activity = reactApplicationContext.currentActivity

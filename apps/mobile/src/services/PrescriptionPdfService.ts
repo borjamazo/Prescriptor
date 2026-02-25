@@ -117,6 +117,67 @@ export const PrescriptionPdfService = {
   },
 
   /**
+   * Creates a prescription PDF without digital signature.
+   * Use this when no digital certificates are available on the device.
+   * 
+   * WARNING: Unsigned prescriptions may not be legally valid.
+   * 
+   * @param params - Prescription and block ID
+   * @returns URI of the unsigned PDF
+   */
+  async createPrescriptionWithoutSignature(params: CreatePrescriptionPdfParams): Promise<string> {
+    const { prescription, blockId } = params;
+
+    // Get the prescription block
+    const blocks = await PrescriptionBlockService.getAll();
+    const block = blocks.find(b => b.id === blockId);
+
+    if (!block) {
+      throw new Error('Prescription block not found');
+    }
+
+    // Find the page index and prescription index for this prescription
+    const usedReceta = block.history.find(h => h.serial === prescription.rxNumber);
+    if (!usedReceta) {
+      throw new Error('Prescription not found in block history');
+    }
+
+    const pageIndex = usedReceta.pageIndex;
+    const prescriptionIndex = block.history.indexOf(usedReceta);
+
+    // Decrypt password if needed
+    const password = block.encryptedPwd
+      ? PrescriptionBlockService.decryptPwd(block.encryptedPwd)
+      : '';
+
+    try {
+      // Create prescription PDF with patient data (without signing)
+      console.log('Creating prescription PDF without signature...');
+      console.log(`Page: ${pageIndex}, Prescription index: ${prescriptionIndex}, Position: ${prescriptionIndex % 2 === 0 ? 'TOP' : 'BOTTOM'}`);
+      
+      const prescriptionPdfUri = await PdfSigner.createPrescriptionPdf(
+        block.fileUri,
+        pageIndex,
+        password,
+        prescriptionIndex,
+        prescription.patientName,
+        prescription.patientDocument,
+        prescription.patientBirthDate,
+        prescription.medication,
+        prescription.dosage,
+        prescription.instructions,
+      );
+
+      console.log('Prescription PDF created (unsigned):', prescriptionPdfUri);
+
+      return prescriptionPdfUri;
+    } catch (error) {
+      console.error('Error creating prescription PDF:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Share a signed prescription PDF
    */
   async sharePrescription(pdfUri: string): Promise<void> {
